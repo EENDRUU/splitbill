@@ -1246,40 +1246,175 @@ function renderSummary() {
   html += '</div>';
 
   // Per-person summary
+  // Per-person summary — detailed breakdown
   html += `<p style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Per orang</p>`;
+
   html += members.map(m => {
-    const owe = txns.filter(t=>t.from===m);
-    const recv = txns.filter(t=>t.to===m);
-    if (!owe.length && !recv.length)
-      return `<div class="person-block"><div class="person-head"><div class="person-head-left"><span style="font-weight:600">${m}</span></div><span class="badge badge-green">Lunas ✓</span></div></div>`;
-    const oweRemaining = owe.filter(t=>!paidStatus[t.key]);
-    const totalOwe = owe.reduce((s,t)=>s+t.amount,0);
-    const totalOweRem = oweRemaining.reduce((s,t)=>s+t.amount,0);
-    const totalRecv = recv.reduce((s,t)=>s+t.amount,0);
-    const pid = 'pb_'+m.replace(/\W/g,'');
-    const allDone = owe.length ? owe.every(t=>paidStatus[t.key]) : recv.every(t=>paidStatus[t.key]);
+    const owe = txns.filter(t => t.from === m);
+    const recv = txns.filter(t => t.to === m);
+    const pid = 'pb_' + m.replace(/\W/g, '');
+    const allDone = owe.length
+      ? owe.every(t => paidStatus[t.key])
+      : recv.length ? recv.every(t => paidStatus[t.key]) : true;
+
+    // Hitung total konsumsi & total bayar per orang dari semua sesi
+    let totalKonsumsi = 0;
+    let totalBayar = 0;
+    const sesiBreakdown = []; // [{sesiName, sesiDate, items:[{name,amt,note}], paid:amt}]
+
+    list.forEach(s => {
+      const sItems = [];
+      s.items.forEach(item => {
+        const share = (item.shares || {})[m];
+        if (share && share > 0.01) {
+          totalKonsumsi += share;
+          const whoArr = Object.keys(item.shares || {});
+          const count = whoArr.length;
+          let note = '';
+          const isEqual = whoArr.every(k => Math.abs((item.shares[k]||0) - share) < 1);
+          if (isEqual && count > 1) note = `${fmt(item.price)} ÷ ${count} orang`;
+          else note = `porsi khusus ${m}`;
+          sItems.push({ name: item.name, amt: share, note });
+        }
+      });
+      let paid = 0;
+      s.payers.forEach(p => { if (p.name === m) { paid += p.amount; totalBayar += p.amount; } });
+      if (sItems.length || paid > 0) {
+        sesiBreakdown.push({ sesiName: s.name, sesiDate: s.date, items: sItems, paid });
+      }
+    });
+
+    const saldo = totalBayar - totalKonsumsi;
+    const noActivity = !owe.length && !recv.length;
+
+    // Badge di header
+    let headerBadge = '';
+    if (noActivity) {
+      headerBadge = `<span class="badge badge-green">Lunas ✓</span>`;
+    } else {
+      const totalOwe = owe.reduce((s, t) => s + t.amount, 0);
+      const totalOweRem = owe.filter(t => !paidStatus[t.key]).reduce((s, t) => s + t.amount, 0);
+      const totalRecv = recv.reduce((s, t) => s + t.amount, 0);
+      if (owe.length) {
+        headerBadge = allDone
+          ? `<span class="badge badge-green">Lunas ✓</span>`
+          : `<span class="badge badge-red">Bayar ${fmt(totalOweRem)}</span>`;
+      } else {
+        headerBadge = `<span class="badge badge-blue">Terima ${fmt(totalRecv)}</span>`;
+      }
+    }
+
+    if (noActivity) {
+      return `<div class="person-block">
+        <div class="person-head">
+          <div class="person-head-left"><span style="font-weight:600">${m}</span></div>
+          ${headerBadge}
+        </div>
+      </div>`;
+    }
+
+    // Rincian konsumsi per sesi
+    let breakdownHtml = `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;padding:10px 14px 6px;background:var(--surface2);border-top:1px solid var(--border)">📋 Rincian konsumsi</div>`;
+
+    sesiBreakdown.forEach(sd => {
+      breakdownHtml += `<div style="padding:8px 14px 6px;border-bottom:1px solid var(--border)">`;
+      breakdownHtml += `<p style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;display:flex;align-items:center;gap:5px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+        ${escHtml(sd.sesiName)}${sd.sesiDate ? ' · ' + sd.sesiDate : ''}
+      </p>`;
+      sd.items.forEach(it => {
+        breakdownHtml += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0;gap:8px">
+          <div style="color:var(--text2);display:flex;align-items:center;gap:5px;flex:1;min-width:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/></svg>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(it.name)}</span>
+            <span style="font-size:11px;color:var(--text3);white-space:nowrap">(${it.note})</span>
+          </div>
+          <span style="font-weight:600;color:var(--red);white-space:nowrap;font-size:13px">–${fmt(it.amt)}</span>
+        </div>`;
+      });
+      if (sd.paid > 0) {
+        breakdownHtml += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0;gap:8px">
+          <div style="color:var(--text2);display:flex;align-items:center;gap:5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Membayar kas (${escHtml(sd.sesiName)})
+          </div>
+          <span style="font-weight:600;color:var(--green);white-space:nowrap;font-size:13px">+${fmt(sd.paid)}</span>
+        </div>`;
+      }
+      breakdownHtml += `</div>`;
+    });
+
+    // Kalkulasi saldo
+    breakdownHtml += `<div style="background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px 14px;font-size:12px;color:var(--text2)">
+      Total konsumsi: <b style="color:var(--red)">${fmt(totalKonsumsi)}</b>
+      &nbsp;·&nbsp;
+      Bayar ke kas: <b style="color:var(--green)">${fmt(totalBayar)}</b>
+      &nbsp;·&nbsp;
+      Saldo: <b style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">
+        ${saldo >= 0 ? '+' : ''}${fmt(saldo)}
+      </b>
+    </div>`;
+    breakdownHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-size:14px;font-weight:600;background:var(--surface)">
+      <span>Saldo bersih ${escHtml(m)}</span>
+      <span style="color:${saldo >= 0 ? 'var(--green)' : 'var(--red)'}">
+        ${saldo >= 0 ? '+' : ''}${fmt(saldo)} ${saldo >= 0 ? '(piutang)' : '(utang)'}
+      </span>
+    </div>`;
+
+    // Transfer
+    if (owe.length) {
+      breakdownHtml += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;padding:8px 14px 4px;background:var(--surface2);border-top:1px solid var(--border)">➜ Transfer yang harus dilakukan</div>`;
+      breakdownHtml += `<div style="padding:4px 14px 4px">`;
+      owe.forEach(t => {
+        const done = !!paidStatus[t.key];
+        breakdownHtml += `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${escHtml(m)}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <span style="font-weight:600;${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${escHtml(t.to)}</span>
+          <div style="width:4px;height:4px;border-radius:50%;background:var(--text3);flex-shrink:0"></div>
+          <span style="color:${done ? 'var(--text3)' : 'var(--red)'};font-weight:600">${fmt(t.amount)}</span>
+          <div style="flex:1"></div>
+          ${done
+            ? `<span style="background:var(--green-light);color:var(--green);border:1px solid var(--green-border);border-radius:20px;font-size:11px;font-weight:600;padding:2px 8px">✓ Lunas</span>`
+            : `<button class="btn btn-sm btn-green" onclick="togglePaid('${t.key}')">Tandai lunas</button>`
+          }
+        </div>`;
+      });
+      breakdownHtml += `</div>`;
+    }
+
+    if (recv.length) {
+      breakdownHtml += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;padding:8px 14px 4px;background:var(--surface2);border-top:1px solid var(--border)">↙ Yang akan diterima</div>`;
+      breakdownHtml += `<div style="padding:4px 14px 4px">`;
+      recv.forEach(t => {
+        const done = !!paidStatus[t.key];
+        breakdownHtml += `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;font-size:13px;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${escHtml(t.from)}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <span style="font-weight:600;${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${escHtml(m)}</span>
+          <div style="width:4px;height:4px;border-radius:50%;background:var(--text3);flex-shrink:0"></div>
+          <span style="color:${done ? 'var(--text3)' : 'var(--green)'};font-weight:600">${fmt(t.amount)}</span>
+          <div style="flex:1"></div>
+          ${done
+            ? `<span style="background:var(--green-light);color:var(--green);border:1px solid var(--green-border);border-radius:20px;font-size:11px;font-weight:600;padding:2px 8px">✓ Lunas</span>`
+            : `<span style="background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-border);border-radius:20px;font-size:11px;font-weight:600;padding:2px 8px">Menunggu</span>`
+          }
+        </div>`;
+      });
+      breakdownHtml += `</div>`;
+    }
+
     return `<div class="person-block">
       <div class="person-head" onclick="togglePerson('${pid}')">
         <div class="person-head-left">
           <svg class="chevron" id="chev_${pid}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           <span style="font-weight:600">${m}</span>
-          ${allDone?'<span class="badge badge-green" style="margin-left:4px">✓</span>':''}
+          ${allDone ? '<span class="badge badge-green" style="margin-left:4px">✓</span>' : ''}
         </div>
-        <span class="badge ${totalOwe>0?(allDone?'badge-green':'badge-red'):'badge-blue'}">
-          ${totalOwe>0?(allDone?'Lunas':'Bayar '+fmt(totalOweRem)):'Terima '+fmt(totalRecv)}
-        </span>
+        ${headerBadge}
       </div>
       <div class="person-body" id="${pid}">
-        <div class="person-body-inner">
-          ${owe.map(t=>`<div class="sum-row">
-            <span style="${paidStatus[t.key]?'text-decoration:line-through;color:var(--text3)':''}">Transfer ke <b>${t.to}</b></span>
-            <span style="color:${paidStatus[t.key]?'var(--text3)':'var(--red)'};font-weight:600">${fmt(t.amount)} ${paidStatus[t.key]?'✓':''}</span>
-          </div>`).join('')}
-          ${recv.map(t=>`<div class="sum-row">
-            <span style="${paidStatus[t.key]?'text-decoration:line-through;color:var(--text3)':''}">Terima dari <b>${t.from}</b></span>
-            <span style="color:${paidStatus[t.key]?'var(--text3)':'var(--green)'};font-weight:600">${fmt(t.amount)} ${paidStatus[t.key]?'✓':''}</span>
-          </div>`).join('')}
-        </div>
+        ${breakdownHtml}
       </div>
     </div>`;
   }).join('');
