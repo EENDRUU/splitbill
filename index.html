@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patungan — Split tagihan bareng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F7F5;--surface:#FFFFFF;--surface2:#F0F0EC;
+  --border:#E2E2DC;--border2:#CACAC2;
+  --text:#1A1A18;--text2:#6B6B65;--text3:#A0A09A;
+  --blue:#2563EB;--blue-light:#EFF6FF;--blue-border:#BFDBFE;
+  --green:#16A34A;--green-light:#F0FDF4;--green-border:#BBF7D0;
+  --red:#DC2626;--red-light:#FEF2F2;--red-border:#FECACA;
+  --amber:#D97706;--amber-light:#FFFBEB;--amber-border:#FDE68A;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.04);
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+
+/* Layout */
+.app{max-width:680px;margin:0 auto;padding:20px 16px 60px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.logo{font-size:20px;font-weight:600;letter-spacing:-0.3px}
+.logo span{color:var(--blue)}
+.header-actions{display:flex;gap:8px}
+
+/* Nav */
+.nav{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;gap:2px;margin-bottom:20px}
+.nav-btn{flex:1;padding:8px;font-size:13px;font-weight:500;border:none;background:none;border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center;gap:5px;transition:background 0.15s,color 0.15s}
+.nav-btn:hover{background:var(--surface2);color:var(--text)}
+.nav-btn.active{background:var(--text);color:#fff}
+.nav-btn svg{width:15px;height:15px;flex-shrink:0}
+
+/* Sections */
+.section{display:none}.section.active{display:block}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:10px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title svg{width:16px;height:16px;color:var(--text2)}
+
+/* Form */
+label{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:5px;letter-spacing:0.01em}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);transition:border-color 0.15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue)}
+input::placeholder{color:var(--text3)}
+.form-row{display:grid;gap:10px;margin-bottom:12px}
+.col-2{grid-template-columns:1fr 1fr}
+.col-3{grid-template-columns:1fr 1fr 1fr}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:background 0.15s,border-color 0.15s;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn:active{transform:scale(0.98)}
+.btn svg{width:14px;height:14px;flex-shrink:0}
+.btn-primary{background:var(--text);color:#fff;border-color:var(--text)}
+.btn-primary:hover{background:#333}
+.btn-blue{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-blue:hover{background:#1D4ED8}
+.btn-danger{color:var(--red);border-color:var(--red-border)}
+.btn-danger:hover{background:var(--red-light)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-icon{padding:7px;border-radius:var(--radius-sm)}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.chip{padding:5px 11px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all 0.15s;user-select:none}
+.chip:hover{border-color:var(--border2);color:var(--text)}
+.chip.on{background:var(--blue-light);border-color:var(--blue-border);color:var(--blue)}
+
+/* Badges */
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:0.02em}
+.badge-green{background:var(--green-light);color:var(--green);border:1px solid var(--green-border)}
+.badge-red{background:var(--red-light);color:var(--red);border:1px solid var(--red-border)}
+.badge-amber{background:var(--amber-light);color:var(--amber);border:1px solid var(--amber-border)}
+.badge-blue{background:var(--blue-light);color:var(--blue);border:1px solid var(--blue-border)}
+
+/* Item rows */
+.item-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px}
+.item-header{display:grid;grid-template-columns:2fr 1.2fr 1fr auto;gap:8px;align-items:end;margin-bottom:0}
+.item-members{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none}
+.item-members.show{display:block}
+.item-members-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-top:6px}
+.item-info{font-size:12px;color:var(--text2);margin-top:7px;padding:5px 8px;background:var(--surface2);border-radius:var(--radius-sm)}
+
+.payer-block{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px}
+
+/* Sesi list */
+.sesi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:8px;transition:border-color 0.15s}
+.sesi-card:hover{border-color:var(--border2)}
+.sesi-meta{font-size:12px;color:var(--text3);margin-top:3px}
+.sesi-actions{display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+
+/* Divider */
+.divider{height:1px;background:var(--border);margin:12px 0}
+
+/* Summary */
+.debt-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.debt-row:last-child{border-bottom:none}
+.person-block{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:6px}
+.person-head{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:var(--surface);transition:background 0.15s}
+.person-head:hover{background:var(--surface2)}
+.person-body{display:none;padding:8px 14px;border-top:1px solid var(--border);background:var(--surface)}
+.person-body.open{display:block}
+.sum-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.sum-row:last-child{border-bottom:none}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.stat-label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px}
+.stat-val{font-size:22px;font-weight:600;letter-spacing:-0.5px}
+
+/* Share panel */
+.share-box{background:var(--blue-light);border:1px solid var(--blue-border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.share-url{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 11px;font-size:12px;word-break:break-all;color:var(--text2);margin:8px 0;font-family:monospace;max-height:60px;overflow-y:auto}
+
+/* Setup screen */
+.setup{max-width:480px;margin:40px auto;text-align:center;padding:0 16px}
+.setup-icon{font-size:40px;margin-bottom:16px}
+.setup h2{font-size:22px;font-weight:600;margin-bottom:8px}
+.setup p{color:var(--text2);margin-bottom:24px;font-size:14px}
+.setup-form{text-align:left}
+.setup-step{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;font-size:13px;color:var(--text2)}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;margin-top:1px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:20px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:#fff;padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;opacity:0;transition:opacity 0.25s,transform 0.25s;pointer-events:none;z-index:300;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Connected indicator */
+.fb-indicator{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:20px}
+.fb-indicator.connected{background:var(--green-light);color:var(--green);border:1px solid var(--green-border)}
+.fb-indicator.disconnected{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* Empty */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:10px}
+.empty p{font-size:14px}
+
+/* Responsive */
+@media(max-width:480px){
+  .col-2,.col-3{grid-template-columns:1fr}
+  .item-header{grid-template-columns:1fr 1fr auto;grid-template-rows:auto auto}
+  .item-header>:nth-child(3){grid-column:1;grid-row:2}
+  .item-header>:nth-child(4){grid-column:2;grid-row:2;justify-self:end;align-self:end}
+  .payer-block{grid-template-columns:1fr auto;grid-template-rows:auto auto}
+  .payer-block>:nth-child(2){grid-column:1;grid-row:2}
+  .payer-block>:nth-child(3){grid-column:2;grid-row:1 / span 2;align-self:end}
+  .stats{grid-template-columns:1fr 1fr}
+  .stats>.stat:last-child{grid-column:1/-1}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN (shown when no firebase config) -->
+<div id="setupScreen" class="setup" style="display:none">
+  <div class="setup-icon">🔗</div>
+  <h2>Hubungkan Firebase</h2>
+  <p>Masukkan konfigurasi Firebase Realtime Database untuk mulai. Data akan tersimpan di cloud dan bisa diakses semua anggota via link.</p>
+  <div class="setup-form card">
+    <div class="form-row" style="margin-bottom:10px"><label>Database URL</label><input id="su_url" placeholder="https://xxx-default-rtdb.firebaseio.com"></div>
+    <div class="form-row" style="margin-bottom:10px"><label>API Key</label><input id="su_key" placeholder="AIzaSy..." type="password"></div>
+    <div class="form-row col-2" style="margin-bottom:10px">
+      <div><label>Auth Domain</label><input id="su_domain" placeholder="xxx.firebaseapp.com"></div>
+      <div><label>Project ID</label><input id="su_project" placeholder="my-project-id"></div>
+    </div>
+    <div style="margin-bottom:10px">
+      <label>Nama database (opsional — untuk grup berbeda)</label>
+      <input id="su_dbname" placeholder="patungan-lebaran" value="patungan">
+    </div>
+    <button class="btn btn-blue" style="width:100%;justify-content:center" onclick="setupFirebase()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Hubungkan & buat link berbagi
+    </button>
+    <div id="su_error" style="color:var(--red);font-size:13px;margin-top:8px;display:none"></div>
+  </div>
+  <div class="setup-step" style="text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-top:4px">
+    <div>
+      <p style="font-weight:600;color:var(--text);margin-bottom:8px;font-size:13px">Cara dapat Firebase config:</p>
+      <div class="setup-step"><div class="step-num">1</div><span>Buka <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → buat project baru</span></div>
+      <div class="setup-step"><div class="step-num">2</div><span>Masuk <b>Build → Realtime Database</b> → Create database → pilih region</span></div>
+      <div class="setup-step"><div class="step-num">3</div><span>Di <b>Rules</b>, set read & write ke <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">true</code> sementara</span></div>
+      <div class="setup-step"><div class="step-num">4</div><span>Project Settings → Web app → copy config (apiKey, authDomain, databaseURL, projectId)</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="app" style="display:none">
+  <div class="header">
+    <div class="logo">patung<span>an</span></div>
+    <div class="header-actions">
+      <div id="fbIndicator" class="fb-indicator disconnected"><div class="dot"></div><span>Offline</span></div>
+      <button class="btn btn-sm" onclick="showShareModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+        Bagikan
+      </button>
+      <button class="btn btn-sm btn-icon" onclick="showSettingsModal()" title="Pengaturan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="gotoTab('sesi')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Sesi
+    </button>
+    <button class="nav-btn" onclick="gotoTab('tambah')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Tambah
+    </button>
+    <button class="nav-btn" onclick="gotoTab('summary')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+      Summary
+    </button>
+  </div>
+
+  <!-- TAB SESI -->
+  <div id="tab-sesi" class="section active">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <p style="font-weight:600;font-size:15px">Semua sesi</p>
+      <button class="btn btn-sm btn-primary" onclick="gotoTab('tambah')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Sesi baru
+      </button>
+    </div>
+    <div id="sesiList"></div>
+  </div>
+
+  <!-- TAB TAMBAH -->
+  <div id="tab-tambah" class="section">
+    <div class="card">
+      <div class="card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Info sesi
+      </div>
+      <div class="form-row col-2" style="margin-bottom:12px">
+        <div><label>Nama sesi / tempat</label><input id="f_name" placeholder="cth: Bu Tini, Obelix"></div>
+        <div><label>Tanggal</label><input id="f_date" type="date"></div>
+      </div>
+      <div>
+        <label>Anggota yang ikut</label>
+        <div id="f_chips" class="chips"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;margin-top:4px">
+      <p style="font-weight:600;font-size:14px">Item pengeluaran</p>
+      <button class="btn btn-sm" onclick="addItem()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Tambah item
+      </button>
+    </div>
+    <div id="f_items"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;margin-top:12px">
+      <p style="font-weight:600;font-size:14px">Pembayar <span style="font-weight:400;color:var(--text3);font-size:12px">(yang sudah keluar uang duluan)</span></p>
+      <button class="btn btn-sm" onclick="addPayer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Tambah
+      </button>
+    </div>
+    <div id="f_payers"></div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="saveSesi()" style="flex:1;justify-content:center">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Simpan sesi
+      </button>
+      <button class="btn" onclick="resetForm()">Reset</button>
+    </div>
+  </div>
+
+  <!-- TAB SUMMARY -->
+  <div id="tab-summary" class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <p style="font-weight:600;font-size:15px">Ringkasan hutang</p>
+      <button class="btn btn-sm" onclick="renderSummary()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Hitung ulang
+      </button>
+    </div>
+    <div id="summaryContent"></div>
+  </div>
+</div>
+
+<!-- MODAL: SHARE -->
+<div id="shareModal" class="modal-bg" style="display:none" onclick="closeModal('shareModal',event)">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-weight:600">Bagikan ke teman</p>
+      <button class="btn btn-icon btn-sm" onclick="closeModal('shareModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Kirim link di bawah ke anggota lain. Firebase config ter-enkripsi di URL — siapa pun yang buka link ini langsung terhubung ke database yang sama.</p>
+    <div class="share-box">
+      <p style="font-size:12px;font-weight:600;color:var(--blue);margin-bottom:4px">🔗 Link berbagi</p>
+      <div class="share-url" id="shareUrl">Memuat...</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-blue btn-sm" onclick="copyShareUrl()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Salin link
+        </button>
+        <button class="btn btn-sm" onclick="shareWhatsApp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          WhatsApp
+        </button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text3)">⚠️ Siapa pun yang punya link ini bisa lihat dan edit data. Jangan bagikan ke luar grup.</p>
+  </div>
+</div>
+
+<!-- MODAL: SETTINGS -->
+<div id="settingsModal" class="modal-bg" style="display:none" onclick="closeModal('settingsModal',event)">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-weight:600">Pengaturan</p>
+      <button class="btn btn-icon btn-sm" onclick="closeModal('settingsModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <p style="font-weight:600;font-size:13px;margin-bottom:10px">Anggota grup</p>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="newMemberInput" placeholder="Nama anggota baru" style="flex:1" onkeydown="if(event.key==='Enter')addMember()">
+      <button class="btn btn-primary btn-sm" onclick="addMember()">Tambah</button>
+    </div>
+    <div id="memberList" style="margin-bottom:16px"></div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600;font-size:13px;margin:12px 0 10px">Firebase</p>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:8px" id="fbConfigPreview"></div>
+    <button class="btn btn-sm btn-danger" onclick="resetFirebase()">Ganti koneksi Firebase</button>
+  </div>
+</div>
+
+<!-- MODAL: DETAIL SESI -->
+<div id="detailModal" class="modal-bg" style="display:none" onclick="closeModal('detailModal',event)">
+  <div class="modal">
+    <div class="modal-header">
+      <p style="font-weight:600" id="detailTitle">Detail sesi</p>
+      <button class="btn btn-icon btn-sm" onclick="closeModal('detailModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let members = [];
+let sesiData = {};
+let fbConfig = null;
+let dbName = 'patungan';
+let db = null;
+let itemIdx = 0, payerIdx = 0;
+
+// ─── CRYPTO ───────────────────────────────────────────────────────────────────
+function encodeConfig(cfg) {
+  const str = JSON.stringify(cfg);
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+function decodeConfig(enc) {
+  try {
+    const b64 = enc.replace(/-/g,'+').replace(/_/g,'/');
+    const padded = b64 + '=='.slice(0, (4 - b64.length % 4) % 4);
+    return JSON.parse(decodeURIComponent(escape(atob(padded))));
+  } catch(e) { return null; }
+}
+
+function getShareUrl() {
+  if (!fbConfig) return '';
+  const cfg = { ...fbConfig, dbName };
+  const base = window.location.href.split('#')[0];
+  return base + '#cfg=' + encodeConfig(cfg);
+}
+
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+function initFirebase(cfg) {
+  try {
+    if (firebase.apps.length) {
+      firebase.apps.forEach(a => a.delete());
+    }
+  } catch(e) {}
+  setTimeout(() => {
+    try {
+      firebase.initializeApp({
+        apiKey: cfg.apiKey,
+        authDomain: cfg.authDomain,
+        databaseURL: cfg.databaseURL,
+        projectId: cfg.projectId,
+      });
+      db = firebase.database();
+      fbConfig = cfg;
+      dbName = cfg.dbName || 'patungan';
+      localStorage.setItem('pat_fbconfig', JSON.stringify(cfg));
+      updateFbIndicator(true);
+      loadFromFirebase();
+    } catch(e) {
+      console.error(e);
+      updateFbIndicator(false);
+      toast('Gagal connect Firebase: ' + e.message);
+    }
+  }, 100);
+}
+
+function updateFbIndicator(connected) {
+  const el = document.getElementById('fbIndicator');
+  if (connected) {
+    el.className = 'fb-indicator connected';
+    el.innerHTML = '<div class="dot"></div><span>Online</span>';
+  } else {
+    el.className = 'fb-indicator disconnected';
+    el.innerHTML = '<div class="dot"></div><span>Offline</span>';
+  }
+}
+
+function loadFromFirebase() {
+  if (!db) return;
+  db.ref(dbName + '/members').on('value', snap => {
+    const val = snap.val();
+    if (val && Array.isArray(val)) {
+      members = val;
+      localStorage.setItem('pat_members', JSON.stringify(members));
+    }
+    renderMemberList();
+    renderChips();
+  });
+  db.ref(dbName + '/sesi').on('value', snap => {
+    const val = snap.val();
+    sesiData = val || {};
+    localStorage.setItem('pat_sesi', JSON.stringify(sesiData));
+    renderSesiList();
+    renderSummary();
+  });
+}
+
+function pushMembers() {
+  localStorage.setItem('pat_members', JSON.stringify(members));
+  if (db) db.ref(dbName + '/members').set(members).catch(e => console.error(e));
+}
+
+function pushSesi(sesi) {
+  if (db) db.ref(dbName + '/sesi/' + sesi.id).set(sesi).catch(e => console.error(e));
+  sesiData[sesi.id] = sesi;
+  localStorage.setItem('pat_sesi', JSON.stringify(sesiData));
+}
+
+function deleteSesiDb(id) {
+  if (db) db.ref(dbName + '/sesi/' + id).remove().catch(e => console.error(e));
+  delete sesiData[id];
+  localStorage.setItem('pat_sesi', JSON.stringify(sesiData));
+}
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+function setupFirebase() {
+  const url = document.getElementById('su_url').value.trim();
+  const key = document.getElementById('su_key').value.trim();
+  const domain = document.getElementById('su_domain').value.trim();
+  const project = document.getElementById('su_project').value.trim();
+  const dbNameVal = document.getElementById('su_dbname').value.trim() || 'patungan';
+  const errEl = document.getElementById('su_error');
+
+  if (!url || !key) {
+    errEl.textContent = 'Database URL dan API Key wajib diisi.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const cfg = { apiKey: key, authDomain: domain, databaseURL: url, projectId: project, dbName: dbNameVal };
+  initFirebase(cfg);
+  showMainApp();
+}
+
+function showMainApp() {
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+}
+
+function showSetup() {
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('setupScreen').style.display = 'block';
+}
+
+function resetFirebase() {
+  if (!confirm('Reset koneksi Firebase? Anda perlu input config ulang.')) return;
+  localStorage.removeItem('pat_fbconfig');
+  fbConfig = null;
+  db = null;
+  closeModal('settingsModal');
+  showSetup();
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // 1. Cek URL hash
+  const hash = window.location.hash;
+  const cfgMatch = hash.match(/[#&]cfg=([^&]+)/);
+  if (cfgMatch) {
+    const decoded = decodeConfig(cfgMatch[1]);
+    if (decoded && decoded.databaseURL) {
+      initFirebase(decoded);
+      showMainApp();
+      // Load local cache while firebase connects
+      loadLocalFallback();
+      return;
+    }
+  }
+
+  // 2. Cek localStorage
+  const saved = localStorage.getItem('pat_fbconfig');
+  if (saved) {
+    try {
+      const cfg = JSON.parse(saved);
+      initFirebase(cfg);
+      showMainApp();
+      loadLocalFallback();
+      return;
+    } catch(e) {}
+  }
+
+  // 3. No config → show setup
+  loadLocalFallback();
+  showSetup();
+});
+
+function loadLocalFallback() {
+  const m = localStorage.getItem('pat_members');
+  const s = localStorage.getItem('pat_sesi');
+  if (m) { try { members = JSON.parse(m); } catch(e) {} }
+  if (!members.length) members = ['Andrew','Bryan','Daud','Edho','Elbert','Haryadi','Jenni','Yesy'];
+  if (s) { try { sesiData = JSON.parse(s); } catch(e) {} }
+  renderMemberList();
+  renderChips();
+  renderSesiList();
+  initForm();
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function gotoTab(name) {
+  document.querySelectorAll('.nav-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['sesi','tambah','summary'][i] === name);
+  });
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'sesi') renderSesiList();
+  if (name === 'tambah') initForm();
+  if (name === 'summary') renderSummary();
+}
+
+// ─── FORM ─────────────────────────────────────────────────────────────────────
+function initForm() {
+  if (!document.getElementById('f_date').value)
+    document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
+  renderChips();
+  if (!document.getElementById('f_items').children.length) addItem();
+  if (!document.getElementById('f_payers').children.length) addPayer();
+}
+
+function renderChips() {
+  const c = document.getElementById('f_chips');
+  if (!c) return;
+  c.innerHTML = members.map(m =>
+    `<span class="chip on" data-m="${m}" onclick="this.classList.toggle('on')">${m}</span>`
+  ).join('');
+}
+
+function getSelected() {
+  return [...document.querySelectorAll('#f_chips .chip.on')].map(c => c.dataset.m);
+}
+
+function addItem() {
+  itemIdx++;
+  const id = 'it_' + itemIdx;
+  const div = document.createElement('div');
+  div.className = 'item-block'; div.id = id;
+  div.innerHTML = `
+    <div class="item-header">
+      <div><label>Nama item</label><input class="it-name" placeholder="cth: Ayam Goreng"></div>
+      <div><label>Total (Rp)</label><input class="it-price" type="number" placeholder="0" min="0" oninput="recalc('${id}')"></div>
+      <div><label>Bagi ke</label><select class="it-split" onchange="recalc('${id}')"><option value="equal">Sama rata (anggota terpilih)</option><option value="custom">Pilih & atur manual</option></select></div>
+      <div><button class="btn btn-icon btn-danger btn-sm" onclick="document.getElementById('${id}').remove()" title="Hapus">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      </button></div>
+    </div>
+    <div class="item-members" id="${id}_m"></div>
+    <div class="item-info" id="${id}_info" style="display:none"></div>
+  `;
+  document.getElementById('f_items').appendChild(div);
+}
+
+function recalc(id) {
+  const el = document.getElementById(id);
+  const split = el.querySelector('.it-split').value;
+  const price = parseFloat(el.querySelector('.it-price').value) || 0;
+  const mDiv = document.getElementById(id + '_m');
+  const info = document.getElementById(id + '_info');
+  const sel = getSelected();
+
+  if (split === 'equal') {
+    mDiv.classList.remove('show');
+    if (sel.length && price) {
+      const per = price / sel.length;
+      info.style.display = 'block';
+      info.innerHTML = `Dibagi ke ${sel.length} orang = <strong>${fmt(per)}/orang</strong>`;
+    } else {
+      info.style.display = 'none';
+    }
+  } else {
+    mDiv.classList.add('show');
+    const existing = {};
+    mDiv.querySelectorAll('input[data-m]').forEach(i => existing[i.dataset.m] = i.value);
+    mDiv.innerHTML = `<label style="font-size:12px;color:var(--text2);margin-bottom:6px;display:block">Nominal per orang (Rp)</label><div class="item-members-grid">` +
+      sel.map(m => `<div><label>${m}</label><input type="number" data-m="${m}" class="custom-share" placeholder="0" value="${existing[m]||''}" oninput="recalcCustom('${id}')"></div>`).join('') +
+      `</div>`;
+    recalcCustom(id);
+  }
+}
+
+function recalcCustom(id) {
+  const el = document.getElementById(id);
+  const total = parseFloat(el.querySelector('.it-price').value) || 0;
+  const allocated = [...el.querySelectorAll('.custom-share')].reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+  const diff = total - allocated;
+  const info = document.getElementById(id + '_info');
+  info.style.display = 'block';
+  info.style.color = Math.abs(diff) < 1 ? 'var(--green)' : 'var(--red)';
+  info.innerHTML = `Total: <strong>${fmt(total)}</strong> · Teralokasi: <strong>${fmt(allocated)}</strong> · Sisa: <strong>${fmt(diff)}</strong>`;
+}
+
+function addPayer() {
+  payerIdx++;
+  const id = 'py_' + payerIdx;
+  const div = document.createElement('div');
+  div.className = 'payer-block'; div.id = id;
+  const opts = members.map(m => `<option value="${m}">${m}</option>`).join('');
+  div.innerHTML = `
+    <div><label>Nama</label><select class="py-name">${opts}</select></div>
+    <div><label>Jumlah dibayar (Rp)</label><input class="py-amount" type="number" placeholder="0" min="0"></div>
+    <div style="align-self:end"><button class="btn btn-icon btn-danger btn-sm" onclick="document.getElementById('${id}').remove()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+    </button></div>
+  `;
+  document.getElementById('f_payers').appendChild(div);
+}
+
+function collectItems() {
+  const items = [];
+  const sel = getSelected();
+  document.querySelectorAll('#f_items .item-block').forEach(el => {
+    const name = el.querySelector('.it-name').value.trim();
+    const price = parseFloat(el.querySelector('.it-price').value) || 0;
+    if (!name || !price) return;
+    const split = el.querySelector('.it-split').value;
+    const shares = {};
+    if (split === 'equal') {
+      const per = price / (sel.length || 1);
+      sel.forEach(m => shares[m] = per);
+    } else {
+      el.querySelectorAll('.custom-share').forEach(i => {
+        if (i.dataset.m) shares[i.dataset.m] = parseFloat(i.value) || 0;
+      });
+    }
+    items.push({ name, price, shares });
+  });
+  return items;
+}
+
+function collectPayers() {
+  return [...document.querySelectorAll('#f_payers .payer-block')]
+    .map(el => ({ name: el.querySelector('.py-name').value, amount: parseFloat(el.querySelector('.py-amount').value) || 0 }))
+    .filter(p => p.amount > 0);
+}
+
+function saveSesi() {
+  const name = document.getElementById('f_name').value.trim();
+  const date = document.getElementById('f_date').value;
+  const sel = getSelected();
+  const items = collectItems();
+  const payers = collectPayers();
+  if (!name) { toast('Isi nama sesi!'); return; }
+  if (!sel.length) { toast('Pilih minimal 1 anggota!'); return; }
+  if (!items.length) { toast('Tambah minimal 1 item!'); return; }
+  if (!payers.length) { toast('Tambah minimal 1 pembayar!'); return; }
+  const sesi = { id: 'S' + Date.now(), name, date, members: sel, items, payers };
+  pushSesi(sesi);
+  toast('Sesi "' + name + '" tersimpan!');
+  resetForm();
+  gotoTab('sesi');
+}
+
+function resetForm() {
+  document.getElementById('f_name').value = '';
+  document.getElementById('f_items').innerHTML = '';
+  document.getElementById('f_payers').innerHTML = '';
+  itemIdx = 0; payerIdx = 0;
+  renderChips();
+  addItem();
+  addPayer();
+}
+
+// ─── SESI LIST ────────────────────────────────────────────────────────────────
+function renderSesiList() {
+  const el = document.getElementById('sesiList');
+  if (!el) return;
+  const list = Object.values(sesiData).sort((a, b) => b.id.localeCompare(a.id));
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🧾</div><p>Belum ada sesi. Tambah sesi pertama!</p></div>';
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const total = s.items.reduce((sum, i) => sum + i.price, 0);
+    const paid = s.payers.reduce((sum, p) => sum + p.amount, 0);
+    const ok = Math.abs(paid - total) < 5;
+    return `<div class="sesi-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <p style="font-weight:600">${s.name}</p>
+          <p class="sesi-meta">${s.date} · ${s.members.length} orang</p>
+        </div>
+        <div style="text-align:right">
+          <p style="font-weight:600">${fmt(total)}</p>
+          <span class="badge ${ok?'badge-green':'badge-amber'}">${ok?'Lunas':'Belum lunas'}</span>
+        </div>
+      </div>
+      <div class="sesi-actions">
+        <button class="btn btn-sm" onclick="showDetail('${s.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Detail
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="doDeleteSesi('${s.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+          Hapus
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function doDeleteSesi(id) {
+  if (!confirm('Hapus sesi ini?')) return;
+  deleteSesiDb(id);
+  renderSesiList();
+  toast('Sesi dihapus');
+}
+
+function showDetail(id) {
+  const s = sesiData[id];
+  if (!s) return;
+  const total = s.items.reduce((sum, i) => sum + i.price, 0);
+  document.getElementById('detailTitle').textContent = s.name + ' — ' + s.date;
+  let html = '<p style="font-size:12px;color:var(--text3);margin-bottom:10px">' + s.members.join(', ') + '</p>';
+  html += '<div class="card" style="padding:12px 14px">';
+  s.items.forEach(i => {
+    html += `<div class="sum-row"><span>${i.name}</span><span style="font-weight:500">${fmt(i.price)}</span></div>`;
+  });
+  html += `<div class="sum-row" style="font-weight:600;font-size:15px"><span>Total</span><span>${fmt(total)}</span></div></div>`;
+  html += '<p style="font-size:12px;font-weight:600;color:var(--text2);margin:12px 0 6px">Yang sudah bayar:</p><div class="card" style="padding:12px 14px">';
+  s.payers.forEach(p => {
+    html += `<div class="sum-row"><span>${p.name}</span><span style="color:var(--green);font-weight:500">${fmt(p.amount)}</span></div>`;
+  });
+  html += '</div>';
+  document.getElementById('detailBody').innerHTML = html;
+  document.getElementById('detailModal').style.display = 'flex';
+}
+
+// ─── SUMMARY ──────────────────────────────────────────────────────────────────
+function renderSummary() {
+  const el = document.getElementById('summaryContent');
+  if (!el) return;
+  const list = Object.values(sesiData);
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Belum ada data sesi.</p></div>';
+    return;
+  }
+
+  const bal = {};
+  members.forEach(m => bal[m] = 0);
+
+  list.forEach(s => {
+    s.items.forEach(item => {
+      Object.entries(item.shares || {}).forEach(([m, amt]) => {
+        if (!(m in bal)) bal[m] = 0;
+        bal[m] -= amt;
+      });
+    });
+    s.payers.forEach(p => {
+      if (!(p.name in bal)) bal[p.name] = 0;
+      bal[p.name] += p.amount;
+    });
+  });
+
+  // Settle debts (greedy)
+  const debtors = Object.entries(bal).filter(([,v]) => v < -0.5).map(([n,v]) => [n, Math.abs(v)]);
+  const creditors = Object.entries(bal).filter(([,v]) => v > 0.5).map(([n,v]) => [n, v]);
+  debtors.sort((a,b) => b[1]-a[1]); creditors.sort((a,b) => b[1]-a[1]);
+  const txns = [];
+  let di = 0, ci = 0;
+  const d = debtors.map(x => [...x]), c = creditors.map(x => [...x]);
+  while (di < d.length && ci < c.length) {
+    const amt = Math.min(d[di][1], c[ci][1]);
+    if (amt > 0.5) txns.push({ from: d[di][0], to: c[ci][0], amount: amt });
+    d[di][1] -= amt; c[ci][1] -= amt;
+    if (d[di][1] < 0.5) di++;
+    if (c[ci][1] < 0.5) ci++;
+  }
+
+  const totalExp = list.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
+
+  let html = `<div class="stats">
+    <div class="stat"><div class="stat-label">Total pengeluaran</div><div class="stat-val">${fmt(totalExp)}</div></div>
+    <div class="stat"><div class="stat-label">Jumlah sesi</div><div class="stat-val">${list.length}</div></div>
+    <div class="stat"><div class="stat-label">Perlu transfer</div><div class="stat-val">${txns.length}</div></div>
+  </div>`;
+
+  if (!txns.length) {
+    html += '<div class="card" style="text-align:center;padding:24px"><p style="font-size:28px;margin-bottom:8px">✅</p><p style="font-weight:600">Semua sudah lunas!</p></div>';
+  } else {
+    html += '<p style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Transfer yang perlu dilakukan:</p>';
+    html += txns.map(t => `
+      <div class="card" style="padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1"><p style="font-size:11px;color:var(--text3);margin-bottom:2px">dari</p><p style="font-weight:600">${t.from}</p></div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          <div style="flex:1"><p style="font-size:11px;color:var(--text3);margin-bottom:2px">ke</p><p style="font-weight:600">${t.to}</p></div>
+          <div><p style="font-size:19px;font-weight:600;color:var(--red)">${fmt(t.amount)}</p></div>
+        </div>
+      </div>
+    `).join('');
+
+    html += '<p style="font-size:13px;font-weight:600;color:var(--text2);margin:14px 0 8px">Per orang:</p>';
+    html += members.map(m => {
+      const owe = txns.filter(t => t.from === m);
+      const recv = txns.filter(t => t.to === m);
+      if (!owe.length && !recv.length)
+        return `<div class="person-block"><div class="person-head"><span style="font-weight:500">${m}</span><span class="badge badge-green">Lunas ✓</span></div></div>`;
+      const totalOwe = owe.reduce((s,t) => s + t.amount, 0);
+      const totalRecv = recv.reduce((s,t) => s + t.amount, 0);
+      const pid = 'pb_' + m.replace(/\W/g,'');
+      return `<div class="person-block">
+        <div class="person-head" onclick="document.getElementById('${pid}').classList.toggle('open')">
+          <span style="font-weight:500">${m}</span>
+          <span class="badge ${totalOwe > 0 ? 'badge-red' : 'badge-green'}">${totalOwe > 0 ? 'Bayar ' + fmt(totalOwe) : 'Terima ' + fmt(totalRecv)}</span>
+        </div>
+        <div class="person-body" id="${pid}">
+          ${owe.map(t => `<div class="sum-row"><span>Transfer ke <strong>${t.to}</strong></span><span style="color:var(--red);font-weight:500">${fmt(t.amount)}</span></div>`).join('')}
+          ${recv.map(t => `<div class="sum-row"><span>Terima dari <strong>${t.from}</strong></span><span style="color:var(--green);font-weight:500">${fmt(t.amount)}</span></div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+// ─── MEMBERS ──────────────────────────────────────────────────────────────────
+function addMember() {
+  const val = document.getElementById('newMemberInput').value.trim();
+  if (!val) { toast('Isi nama anggota'); return; }
+  if (members.includes(val)) { toast('Sudah ada!'); return; }
+  members.push(val);
+  pushMembers();
+  document.getElementById('newMemberInput').value = '';
+  renderMemberList();
+  renderChips();
+  toast(val + ' ditambahkan');
+}
+
+function removeMember(name) {
+  if (!confirm('Hapus ' + name + '?')) return;
+  members = members.filter(m => m !== name);
+  pushMembers();
+  renderMemberList();
+  renderChips();
+}
+
+function renderMemberList() {
+  const el = document.getElementById('memberList');
+  if (!el) return;
+  if (!members.length) { el.innerHTML = '<p style="font-size:13px;color:var(--text3)">Belum ada anggota.</p>'; return; }
+  el.innerHTML = members.map(m =>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:14px">${m}</span>
+      <button class="btn btn-sm btn-danger" onclick="removeMember('${m}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Hapus
+      </button>
+    </div>`
+  ).join('');
+}
+
+// ─── SHARE ────────────────────────────────────────────────────────────────────
+function showShareModal() {
+  if (!fbConfig) { toast('Hubungkan Firebase dulu!'); return; }
+  document.getElementById('shareUrl').textContent = getShareUrl();
+  document.getElementById('shareModal').style.display = 'flex';
+}
+
+function copyShareUrl() {
+  const url = getShareUrl();
+  navigator.clipboard.writeText(url).then(() => toast('Link disalin!'));
+}
+
+function shareWhatsApp() {
+  const url = encodeURIComponent(getShareUrl());
+  window.open('https://wa.me/?text=Hei+ikut+lacak+patungan+kita+di+sini+%F0%9F%92%B0+' + url, '_blank');
+}
+
+// ─── SETTINGS MODAL ───────────────────────────────────────────────────────────
+function showSettingsModal() {
+  renderMemberList();
+  const preview = document.getElementById('fbConfigPreview');
+  if (fbConfig) {
+    preview.innerHTML = `<span class="badge badge-green" style="margin-bottom:6px">Terhubung</span><br>
+      <span style="font-family:monospace;font-size:12px">${fbConfig.databaseURL || '-'}</span><br>
+      <span style="font-size:12px;color:var(--text3)">Nama DB: ${dbName}</span>`;
+  } else {
+    preview.innerHTML = '<span class="badge badge-amber">Tidak terhubung</span>';
+  }
+  document.getElementById('settingsModal').style.display = 'flex';
+}
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function closeModal(id, e) {
+  if (!e || e.target.id === id) document.getElementById(id).style.display = 'none';
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function fmt(n) {
+  return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
