@@ -1220,30 +1220,41 @@ function renderSummary() {
     return;
   }
 
+    const balMap = {...bal};
+
   // Transfer list with paid toggle
   html += `<p style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Transfer yang perlu dilakukan</p>`;
   html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">`;
   html += txns.map(t => {
     const done = !!paidStatus[t.key];
-    return `<div class="txn-row ${done?'paid-done':''}">
-      <div class="txn-check ${done?'checked':''}" onclick="togglePaid('${t.key}')" title="${done?'Tandai belum':'Tandai sudah bayar'}">
+    const infoId = 'info_' + t.key.replace(/[^a-z0-9]/gi, '_');
+    return `<div class="txn-row ${done ? 'paid-done' : ''}">
+      <div class="txn-check ${done ? 'checked' : ''}" onclick="togglePaid('${t.key}')" title="${done ? 'Tandai belum' : 'Tandai sudah bayar'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <div class="txn-row-main">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-weight:600;font-size:14px;${done?'text-decoration:line-through;color:var(--text3)':''}">${t.from}</span>
+          <span style="font-weight:600;font-size:14px;${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${t.from}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          <span style="font-weight:600;font-size:14px;${done?'text-decoration:line-through;color:var(--text3)':''}">${t.to}</span>
-          ${done?'<span class="badge badge-green">✓ Lunas</span>':''}
+          <span style="font-weight:600;font-size:14px;${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${t.to}</span>
+          ${done ? '<span class="badge badge-green">✓ Lunas</span>' : ''}
         </div>
-        <p style="font-size:13px;color:var(--text2);margin-top:1px">Transfer <b style="${done?'text-decoration:line-through':''}">${fmt(t.amount)}</b></p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:2px">
+          <p style="font-size:13px;color:var(--text2)">Transfer <b style="${done ? 'text-decoration:line-through' : ''}">${fmt(t.amount)}</b></p>
+          <button onclick="toggleInfo('${infoId}')"
+            style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+              border-radius:50%;border:1.5px solid var(--border2);background:var(--surface2);
+              cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);flex-shrink:0;
+              line-height:1;font-family:inherit"
+            title="Kenapa transfer ke orang ini?">?</button>
+        </div>
+        <div id="${infoId}" style="display:none">${buildTransferExplanation(t, balMap)}</div>
       </div>
-      <button class="btn btn-sm ${done?'':'btn-green'}" style="${done?'color:var(--text3)':''}" onclick="togglePaid('${t.key}')">
-        ${done?'Batal':'Tandai lunas'}
+      <button class="btn btn-sm ${done ? '' : 'btn-green'}" style="${done ? 'color:var(--text3)' : ''}" onclick="togglePaid('${t.key}')">
+        ${done ? 'Batal' : 'Tandai lunas'}
       </button>
     </div>`;
   }).join('');
-  html += '</div>';
 
   // Per-person summary
   // Per-person summary — detailed breakdown
@@ -1420,6 +1431,31 @@ function renderSummary() {
   }).join('');
 
   el.innerHTML = html;
+}
+
+function buildTransferExplanation(txn, balMap) {
+  const fromBal = balMap[txn.from] || 0;
+  const toBal = balMap[txn.to] || 0;
+  return `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
+      padding:10px 12px;font-size:12px;color:var(--text2);margin-top:6px;line-height:1.7">
+      <p style="font-weight:600;color:var(--text);margin-bottom:6px">📐 Kenapa transfer ke ${txn.to}?</p>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between">
+          <span>Saldo <b>${txn.from}</b> (sudah bayar – konsumsi)</span>
+          <span style="color:var(--red);font-weight:600">–${fmt(Math.abs(fromBal))}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span>Saldo <b>${txn.to}</b> (sudah bayar – konsumsi)</span>
+          <span style="color:var(--green);font-weight:600">+${fmt(Math.abs(toBal))}</span>
+        </div>
+        <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px;color:var(--text2)">
+          ${txn.to} lebih banyak keluar uang duluan, sedangkan ${txn.from} masih kurang bayar.
+          Sistem mencocokkan keduanya untuk <b>meminimalkan jumlah transfer</b>.
+          Nominal <b>${fmt(txn.amount)}</b> adalah selisih terkecil yang menyelesaikan kedua saldo sekaligus.
+        </div>
+      </div>
+    </div>`;
 }
 
 function togglePaid(key) {
