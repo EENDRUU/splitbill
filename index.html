@@ -132,6 +132,25 @@ input::placeholder{color:var(--text3)}
 .sesi-members{font-size:12px;color:var(--text2);margin-top:4px}
 .sesi-actions{display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap}
 
+/* ── GROUP ── */
+.group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;cursor:pointer;box-shadow:var(--shadow);transition:background 0.15s}
+.group-header:hover{background:var(--surface2)}
+.group-header-left{display:flex;align-items:center;gap:8px}
+.group-label{font-weight:600;font-size:14px}
+.group-meta{font-size:12px;color:var(--text3)}
+.group-chevron{width:16px;height:16px;color:var(--text3);transition:transform 0.2s;flex-shrink:0}
+.group-body{display:none;padding-left:0;margin-bottom:4px}
+.group-body.open{display:block}
+.group-color-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.group-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+/* Filter tabs */
+.filter-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.filter-tab{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all 0.15s;user-select:none}
+.filter-tab:hover{border-color:var(--border2);color:var(--text)}
+.filter-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+/* Ungrouped label */
+.ungrouped-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;padding:8px 0 6px;display:block}
+
 /* ── DIVIDER ── */
 .divider{height:1px;background:var(--border);margin:14px 0}
 
@@ -314,10 +333,16 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
   <div id="tab-sesi" class="section active">
     <div class="sec-header">
       <div><p class="sec-title">Semua sesi</p><p class="sec-sub" id="sesiCount">—</p></div>
-      <button class="btn btn-sm btn-primary" onclick="gotoTab('tambah')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Sesi baru
-      </button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="showGroupModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+          Grup
+        </button>
+        <button class="btn btn-sm btn-primary" onclick="gotoTab('tambah')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Sesi baru
+        </button>
+      </div>
     </div>
     <div id="sesiList"></div>
   </div>
@@ -333,6 +358,12 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
       <div class="form-row col-2" style="margin-bottom:12px">
         <div><label>Nama sesi / tempat <span style="color:var(--red)">*</span></label><input id="f_name" placeholder="cth: Bu Tini, Obelix"></div>
         <div><label>Tanggal</label><input id="f_date" type="date"></div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label>Grup sesi</label>
+        <select id="f_group">
+          <option value="">— Tidak ada grup —</option>
+        </select>
       </div>
       <div>
         <label>Anggota yang ikut <span style="color:var(--red)">*</span></label>
@@ -385,6 +416,8 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
         Hitung ulang
       </button>
     </div>
+    <!-- Filter grup untuk summary -->
+    <div id="summaryGroupFilter" style="margin-bottom:12px"></div>
     <div id="summaryContent"></div>
   </div>
 </div>
@@ -460,6 +493,37 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
   </div>
 </div>
 
+<!-- ═══ MODAL: GRUP ═══ -->
+<div id="groupModal" class="modal-bg" style="display:none" onclick="closeBgModal('groupModal',event)">
+  <div class="modal" style="max-width:480px">
+    <span class="modal-handle"></span>
+    <div class="modal-header">
+      <p class="modal-title">Kelola Grup Sesi</p>
+      <button class="btn btn-icon btn-sm" onclick="closeModal('groupModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Grup membantu mengorganisir sesi dan menghitung summary per grup terpisah.</p>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="newGroupInput" placeholder="Nama grup, cth: Lebaran 2025" style="flex:1" onkeydown="if(event.key==='Enter')addGroup()">
+      <select id="newGroupColor" style="width:80px">
+        <option value="#2563EB">🔵 Biru</option>
+        <option value="#16A34A">🟢 Hijau</option>
+        <option value="#D97706">🟡 Kuning</option>
+        <option value="#DC2626">🔴 Merah</option>
+        <option value="#7C3AED">🟣 Ungu</option>
+        <option value="#0891B2">🩵 Cyan</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="addGroup()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Buat
+      </button>
+    </div>
+    <div id="groupList"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- ═══════════════════════════════════════════════════════
@@ -470,11 +534,27 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
 let members = [];
 let sesiData = {};
 let paidStatus = {}; // { txnKey: true/false }
+let groups = {}; // { groupId: { id, name, color } }
 let fbConfig = null;
 let dbName = 'patungan';
 let db = null;
 let itemIdx = 0, payerIdx = 0;
-let editingId = null; // sesi being edited
+let editingId = null;
+let summaryGroupFilter = 'all'; // 'all' | groupId | 'ungrouped'
+
+// ── GROUP COLORS ─────────────────────────────────────────
+const GROUP_COLORS = {
+  '#2563EB': { bg:'#EFF6FF', border:'#BFDBFE', text:'#2563EB' },
+  '#16A34A': { bg:'#F0FDF4', border:'#BBF7D0', text:'#16A34A' },
+  '#D97706': { bg:'#FFFBEB', border:'#FDE68A', text:'#D97706' },
+  '#DC2626': { bg:'#FEF2F2', border:'#FECACA', text:'#DC2626' },
+  '#7C3AED': { bg:'#F5F3FF', border:'#DDD6FE', text:'#7C3AED' },
+  '#0891B2': { bg:'#ECFEFF', border:'#A5F3FC', text:'#0891B2' },
+};
+function groupTagStyle(color) {
+  const c = GROUP_COLORS[color] || GROUP_COLORS['#2563EB'];
+  return `background:${c.bg};border:1px solid ${c.border};color:${c.text}`;
+}
 
 // ── UTILS ────────────────────────────────────────────────
 const fmt = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
@@ -521,7 +601,6 @@ function getShareUrl() {
 function initFirebase(cfg) {
   loader(true, 'Menghubungkan ke Firebase...');
   setIndicator('connecting');
-  // clean up old instances
   const cleanup = () => {
     firebase.initializeApp({
       apiKey: cfg.apiKey,
@@ -554,13 +633,14 @@ function loadFromFirebase() {
   if (!db) return;
   loader(true, 'Memuat data...');
 
-  let membersLoaded = false, sesiLoaded = false, paidLoaded = false;
+  let membersLoaded = false, sesiLoaded = false, paidLoaded = false, groupsLoaded = false;
   const checkDone = () => {
-    if (membersLoaded && sesiLoaded && paidLoaded) {
+    if (membersLoaded && sesiLoaded && paidLoaded && groupsLoaded) {
       loader(false);
       renderSesiList();
       renderSummary();
       renderChips();
+      renderGroupSelect();
     }
   };
 
@@ -586,12 +666,21 @@ function loadFromFirebase() {
   db.ref(dbName + '/paid').on('value', snap => {
     paidStatus = snap.val() || {};
     localStorage.setItem('pat_paid', JSON.stringify(paidStatus));
+    renderSesiList();
     renderSummary();
     if (!paidLoaded) { paidLoaded = true; checkDone(); }
   });
 
-  // Timeout fallback
-  setTimeout(() => { if (!membersLoaded||!sesiLoaded||!paidLoaded) loader(false); }, 6000);
+  db.ref(dbName + '/groups').on('value', snap => {
+    groups = snap.val() || {};
+    localStorage.setItem('pat_groups', JSON.stringify(groups));
+    renderGroupSelect();
+    renderSesiList();
+    renderSummaryGroupFilter();
+    if (!groupsLoaded) { groupsLoaded = true; checkDone(); }
+  });
+
+  setTimeout(() => { if (!membersLoaded||!sesiLoaded||!paidLoaded||!groupsLoaded) loader(false); }, 6000);
 }
 
 function pushMembers() {
@@ -620,6 +709,11 @@ function setPaid(key, val) {
   paidStatus[key] = val;
   localStorage.setItem('pat_paid', JSON.stringify(paidStatus));
   if (db) db.ref(dbName + '/paid/' + key).set(val).catch(console.error);
+}
+
+function pushGroups() {
+  localStorage.setItem('pat_groups', JSON.stringify(groups));
+  if (db) db.ref(dbName + '/groups').set(groups).catch(e => toast('Gagal simpan: '+e.message,'error'));
 }
 
 // ── SETUP ────────────────────────────────────────────────
@@ -702,10 +796,12 @@ function loadLocalFallback() {
   const m = localStorage.getItem('pat_members');
   const s = localStorage.getItem('pat_sesi');
   const p = localStorage.getItem('pat_paid');
+  const g = localStorage.getItem('pat_groups');
   if (m) try { members = JSON.parse(m); } catch(e) {}
   if (!members.length) members = ['Andrew','Bryan','Daud','Edho','Elbert','Haryadi','Jenni','Yesy'];
   if (s) try { sesiData = JSON.parse(s); } catch(e) {}
   if (p) try { paidStatus = JSON.parse(p); } catch(e) {}
+  if (g) try { groups = JSON.parse(g); } catch(e) {}
 }
 
 // ── NAVIGATION ───────────────────────────────────────────
@@ -716,7 +812,7 @@ function gotoTab(name) {
   document.getElementById('tab-'+name).classList.add('active');
   if (name === 'sesi') renderSesiList();
   if (name === 'tambah') initForm();
-  if (name === 'summary') renderSummary();
+  if (name === 'summary') { renderSummaryGroupFilter(); renderSummary(); }
 }
 
 // ── FORM ─────────────────────────────────────────────────
@@ -724,8 +820,19 @@ function initForm() {
   if (!document.getElementById('f_date').value)
     document.getElementById('f_date').value = new Date().toISOString().split('T')[0];
   renderChips();
+  renderGroupSelect();
   if (!document.getElementById('f_items').children.length) addItem();
   if (!document.getElementById('f_payers').children.length) addPayer();
+}
+
+function renderGroupSelect() {
+  const sel = document.getElementById('f_group');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— Tidak ada grup —</option>' +
+    Object.values(groups).map(g =>
+      `<option value="${g.id}" ${current===g.id?'selected':''}>${escHtml(g.name)}</option>`
+    ).join('');
 }
 
 function renderChips() {
@@ -777,7 +884,6 @@ function addItem(data) {
   `;
   document.getElementById('f_items').appendChild(div);
   if (data) {
-    // restore split mode
     const shareKeys = Object.keys(data.shares || {});
     const allSel = getSelected();
     const isCustom = shareKeys.some(k => {
@@ -833,7 +939,7 @@ function recalc(id, existingShares) {
       }).join('')}</div>`;
     recalcSelect(id);
 
-  } else { // custom
+  } else {
     mDiv.classList.add('show');
     const existing = existingShares || {};
     mDiv.innerHTML = `<label style="font-size:12px;color:var(--text2);margin-bottom:6px;display:block">Nominal per orang (Rp):</label>
@@ -925,7 +1031,6 @@ function updatePayerDiff() {
   const payerTotal = [...document.querySelectorAll('#f_payers .py-amount')]
     .reduce((s,el) => s+(parseFloat(el.value)||0), 0);
 
-  // Auto-fill single payer if total matches items
   const payers = document.querySelectorAll('#f_payers .payer-block');
   if (payers.length === 1) {
     const amtEl = payers[0].querySelector('.py-amount');
@@ -986,6 +1091,7 @@ function collectPayers() {
 function saveSesi() {
   const name = document.getElementById('f_name').value.trim();
   const date = document.getElementById('f_date').value;
+  const groupId = document.getElementById('f_group').value || null;
   const sel = getSelected();
   const items = collectItems();
   const payers = collectPayers();
@@ -996,6 +1102,7 @@ function saveSesi() {
 
   const id = editingId || ('S' + Date.now());
   const sesi = {id, name, date, members:sel, items, payers};
+  if (groupId) sesi.groupId = groupId;
   pushSesi(sesi);
   toast(editingId ? 'Sesi diperbarui!' : 'Sesi "'+name+'" tersimpan!', 'success');
   editingId = null;
@@ -1014,6 +1121,7 @@ function resetForm() {
   editingId = null;
   itemIdx = 0; payerIdx = 0;
   renderChips();
+  renderGroupSelect();
   addItem();
   addPayer();
 }
@@ -1032,19 +1140,18 @@ function editSesi(id) {
 
   document.getElementById('f_name').value = s.name;
   document.getElementById('f_date').value = s.date;
+  renderGroupSelect();
+  document.getElementById('f_group').value = s.groupId || '';
 
-  // set chips
   const c = document.getElementById('f_chips');
   c.innerHTML = members.map(m =>
     `<span class="chip ${s.members.includes(m)?'on':''}" data-m="${m}" onclick="this.classList.toggle('on');autoFillPayer()">${m}</span>`
   ).join('');
 
-  // clear & refill items
   document.getElementById('f_items').innerHTML = '';
   itemIdx = 0;
   s.items.forEach(item => addItem(item));
 
-  // clear & refill payers
   document.getElementById('f_payers').innerHTML = '';
   payerIdx = 0;
   s.payers.forEach(p => addPayer(p));
@@ -1059,6 +1166,22 @@ function editSesi(id) {
   closeModal('detailModal');
   gotoTab('tambah');
   updatePayerDiff();
+}
+
+// ── SESI STATUS HELPER ───────────────────────────────────
+// Hitung apakah sesi sudah "lunas" berdasarkan paid transfers
+// sesi dianggap lunas jika: payers sudah nutupin total DAN semua transfer yg terkait sesi ini sudah ditandai lunas
+// Untuk simpelnya: sesi lunas jika paid balance ok DAN tidak ada transfer pending yang melibatkan member sesi
+function isSesiLunas(sesi, allTxns) {
+  // Cek payers vs total
+  const total = sesi.items.reduce((s,i) => s+i.price, 0);
+  const paid = sesi.payers.reduce((s,p) => s+p.amount, 0);
+  if (Math.abs(paid - total) > 5) return false;
+  // Semua transfer global sudah lunas (sederhana: cek tidak ada pending transfer yang melibatkan member sesi ini)
+  const sesiMembers = new Set(sesi.members);
+  const pendingTxns = allTxns.filter(t => !paidStatus[t.key] && (sesiMembers.has(t.from) || sesiMembers.has(t.to)));
+  // Jika ada pending transfer yang melibatkan member sesi ini → belum lunas
+  return pendingTxns.length === 0;
 }
 
 // ── SESI LIST ────────────────────────────────────────────
@@ -1081,41 +1204,113 @@ function renderSesiList() {
     return;
   }
 
-  el.innerHTML = list.map(s => {
-    const total = s.items.reduce((sum,i) => sum+i.price, 0);
-    const paid = s.payers.reduce((sum,p) => sum+p.amount, 0);
-    const ok = Math.abs(paid-total) < 5;
-    const memberStr = s.members.length <= 4
-      ? s.members.join(', ')
-      : s.members.slice(0,3).join(', ') + ` +${s.members.length-3} lainnya`;
-    return `<div class="sesi-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="min-width:0">
-          <p style="font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.name)}</p>
-          <p class="sesi-meta">${s.date}</p>
-          <p class="sesi-members">👥 ${memberStr}</p>
+  // Hitung semua transfer global untuk cek status lunas
+  const allTxns = computeAllTxns(list);
+
+  // Pisah grouped dan ungrouped
+  const groupedMap = {}; // groupId → [sesi]
+  const ungrouped = [];
+
+  list.forEach(s => {
+    if (s.groupId && groups[s.groupId]) {
+      if (!groupedMap[s.groupId]) groupedMap[s.groupId] = [];
+      groupedMap[s.groupId].push(s);
+    } else {
+      ungrouped.push(s);
+    }
+  });
+
+  let html = '';
+
+  // Render grup
+  Object.keys(groupedMap).forEach(gid => {
+    const g = groups[gid];
+    const gSesiList = groupedMap[gid];
+    const gTotal = gSesiList.reduce((s, se) => s + se.items.reduce((a,i) => a+i.price, 0), 0);
+    const allLunas = gSesiList.every(se => isSesiLunas(se, allTxns));
+    const colorStyle = groupTagStyle(g.color || '#2563EB');
+    const elemId = 'grp_' + gid;
+
+    html += `<div>
+      <div class="group-header" onclick="toggleGroupBody('${elemId}')">
+        <div class="group-header-left">
+          <svg class="group-chevron" id="gchev_${elemId}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          <div class="group-color-dot" style="background:${escHtml(g.color||'#2563EB')}"></div>
+          <div>
+            <span class="group-label">${escHtml(g.name)}</span>
+            <span class="group-meta" style="margin-left:6px">${gSesiList.length} sesi · ${fmt(gTotal)}</span>
+          </div>
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <p style="font-weight:700;font-size:15px">${fmt(total)}</p>
-          <span class="badge ${ok?'badge-green':'badge-amber'}" style="margin-top:3px;display:inline-block">${ok?'Lunas':'Belum lunas'}</span>
-        </div>
+        <span class="badge ${allLunas?'badge-green':'badge-amber'}">${allLunas?'Semua Lunas':'Ada Hutang'}</span>
       </div>
-      <div class="sesi-actions">
-        <button class="btn btn-sm" onclick="showDetail('${s.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Detail
-        </button>
-        <button class="btn btn-sm" onclick="editSesi('${s.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit
-        </button>
-        <button class="btn btn-sm btn-danger" onclick="doDeleteSesi('${s.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-          Hapus
-        </button>
+      <div class="group-body" id="${elemId}">
+        ${gSesiList.map(s => renderSesiCard(s, allTxns, g)).join('')}
       </div>
     </div>`;
-  }).join('');
+  });
+
+  // Render ungrouped
+  if (ungrouped.length) {
+    if (Object.keys(groupedMap).length > 0) {
+      html += `<span class="ungrouped-label">Sesi tanpa grup</span>`;
+    }
+    html += ungrouped.map(s => renderSesiCard(s, allTxns, null)).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+function toggleGroupBody(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById('gchev_' + id);
+  if (!body) return;
+  body.classList.toggle('open');
+  if (chev) chev.style.transform = body.classList.contains('open') ? 'rotate(90deg)' : '';
+}
+
+function renderSesiCard(s, allTxns, group) {
+  const total = s.items.reduce((sum,i) => sum+i.price, 0);
+  const lunas = isSesiLunas(s, allTxns);
+  const memberStr = s.members.length <= 4
+    ? s.members.join(', ')
+    : s.members.slice(0,3).join(', ') + ` +${s.members.length-3} lainnya`;
+
+  let groupTag = '';
+  if (group) {
+    groupTag = `<span class="group-tag" style="${groupTagStyle(group.color||'#2563EB')};margin-top:3px;display:inline-flex">
+      <div style="width:6px;height:6px;border-radius:50%;background:${escHtml(group.color||'#2563EB')};flex-shrink:0;margin-top:3px"></div>
+      ${escHtml(group.name)}
+    </span>`;
+  }
+
+  return `<div class="sesi-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="min-width:0">
+        <p style="font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(s.name)}</p>
+        <p class="sesi-meta">${s.date}</p>
+        <p class="sesi-members">👥 ${memberStr}</p>
+        ${groupTag}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <p style="font-weight:700;font-size:15px">${fmt(total)}</p>
+        <span class="badge ${lunas?'badge-green':'badge-amber'}" style="margin-top:3px;display:inline-block">${lunas?'Lunas':'Ada Hutang'}</span>
+      </div>
+    </div>
+    <div class="sesi-actions">
+      <button class="btn btn-sm" onclick="showDetail('${s.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Detail
+      </button>
+      <button class="btn btn-sm" onclick="editSesi('${s.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
+      <button class="btn btn-sm btn-danger" onclick="doDeleteSesi('${s.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Hapus
+      </button>
+    </div>
+  </div>`;
 }
 
 function doDeleteSesi(id) {
@@ -1131,6 +1326,15 @@ function showDetail(id) {
   const total = s.items.reduce((sum,i) => sum+i.price, 0);
   document.getElementById('detailTitle').textContent = escHtml(s.name) + '  ·  ' + s.date;
   let html = `<p style="font-size:12px;color:var(--text3);margin-bottom:12px">👥 ${s.members.join(', ')}</p>`;
+
+  // Group tag
+  if (s.groupId && groups[s.groupId]) {
+    const g = groups[s.groupId];
+    html += `<div style="margin-bottom:10px"><span class="group-tag" style="${groupTagStyle(g.color||'#2563EB')}">
+      <div class="group-color-dot" style="background:${escHtml(g.color||'#2563EB')}"></div>
+      ${escHtml(g.name)}
+    </span></div>`;
+  }
 
   html += '<div class="card" style="padding:12px 14px;margin-bottom:10px">';
   html += '<p style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Item pengeluaran</p>';
@@ -1161,8 +1365,142 @@ function showDetail(id) {
   document.getElementById('detailModal').style.display = 'flex';
 }
 
+// ── GROUP MANAGEMENT ─────────────────────────────────────
+function showGroupModal() {
+  renderGroupList();
+  document.getElementById('groupModal').style.display = 'flex';
+}
+
+function addGroup() {
+  const name = document.getElementById('newGroupInput').value.trim();
+  const color = document.getElementById('newGroupColor').value;
+  if (!name) { toast('Isi nama grup!','error'); return; }
+  const existing = Object.values(groups).find(g => g.name.toLowerCase() === name.toLowerCase());
+  if (existing) { toast('Grup sudah ada!','error'); return; }
+  const id = 'G' + Date.now();
+  groups[id] = { id, name, color };
+  pushGroups();
+  document.getElementById('newGroupInput').value = '';
+  renderGroupList();
+  renderGroupSelect();
+  renderSummaryGroupFilter();
+  toast(name + ' dibuat ✓', 'success');
+}
+
+function deleteGroup(id) {
+  const g = groups[id];
+  if (!g) return;
+  const usedIn = Object.values(sesiData).filter(s => s.groupId === id).length;
+  const msg = usedIn > 0
+    ? `Hapus grup "${g.name}"? ${usedIn} sesi akan jadi tanpa grup.`
+    : `Hapus grup "${g.name}"?`;
+  if (!confirm(msg)) return;
+  delete groups[id];
+  // Hapus groupId dari sesi yang pakai grup ini
+  Object.values(sesiData).forEach(s => {
+    if (s.groupId === id) {
+      delete s.groupId;
+      pushSesi(s);
+    }
+  });
+  pushGroups();
+  renderGroupList();
+  renderGroupSelect();
+  renderSesiList();
+  renderSummaryGroupFilter();
+  if (summaryGroupFilter === id) { summaryGroupFilter = 'all'; renderSummary(); }
+  toast('Grup dihapus');
+}
+
+function renderGroupList() {
+  const el = document.getElementById('groupList');
+  if (!el) return;
+  const gList = Object.values(groups);
+  if (!gList.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--text3);text-align:center;padding:12px 0">Belum ada grup. Buat grup untuk mengorganisir sesi!</p>';
+    return;
+  }
+  el.innerHTML = gList.map(g => {
+    const sesiCount = Object.values(sesiData).filter(s => s.groupId === g.id).length;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="group-color-dot" style="background:${escHtml(g.color||'#2563EB')};width:12px;height:12px"></div>
+      <div style="flex:1">
+        <span style="font-weight:600;font-size:13px">${escHtml(g.name)}</span>
+        <span style="font-size:12px;color:var(--text3);margin-left:6px">${sesiCount} sesi</span>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="deleteGroup('${g.id}')">Hapus</button>
+    </div>`;
+  }).join('');
+}
+
+// ── SUMMARY GROUP FILTER ─────────────────────────────────
+function renderSummaryGroupFilter() {
+  const el = document.getElementById('summaryGroupFilter');
+  if (!el) return;
+  const gList = Object.values(groups);
+  if (!gList.length) { el.innerHTML = ''; return; }
+
+  const hasUngrouped = Object.values(sesiData).some(s => !s.groupId || !groups[s.groupId]);
+
+  let html = '<div class="filter-tabs">';
+  html += `<span class="filter-tab ${summaryGroupFilter==='all'?'active':''}" onclick="setSummaryFilter('all')">Semua sesi</span>`;
+  gList.forEach(g => {
+    html += `<span class="filter-tab ${summaryGroupFilter===g.id?'active':''}" onclick="setSummaryFilter('${g.id}')" style="display:inline-flex;align-items:center;gap:5px">
+      <div style="width:7px;height:7px;border-radius:50%;background:${escHtml(g.color||'#2563EB')}"></div>
+      ${escHtml(g.name)}
+    </span>`;
+  });
+  if (hasUngrouped) {
+    html += `<span class="filter-tab ${summaryGroupFilter==='ungrouped'?'active':''}" onclick="setSummaryFilter('ungrouped')">Tanpa grup</span>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function setSummaryFilter(val) {
+  summaryGroupFilter = val;
+  renderSummaryGroupFilter();
+  renderSummary();
+}
+
+// ── COMPUTE ALL TXNS (helper reusable) ───────────────────
+function computeAllTxns(sesiList) {
+  const bal = {};
+  members.forEach(m => bal[m] = 0);
+  sesiList.forEach(s => {
+    s.items.forEach(item => {
+      Object.entries(item.shares || {}).forEach(([m, amt]) => {
+        if (!(m in bal)) bal[m] = 0;
+        bal[m] -= amt;
+      });
+    });
+    s.payers.forEach(p => {
+      if (!(p.name in bal)) bal[p.name] = 0;
+      bal[p.name] += p.amount;
+    });
+  });
+
+  const debtors = Object.entries(bal).filter(([, v]) => v < -0.5).map(([n, v]) => [n, Math.abs(v)]);
+  const creditors = Object.entries(bal).filter(([, v]) => v > 0.5).map(([n, v]) => [n, v]);
+  debtors.sort((a, b) => b[1] - a[1]);
+  creditors.sort((a, b) => b[1] - a[1]);
+  const txns = [];
+  let di = 0, ci = 0;
+  const d = debtors.map(x => [...x]), c = creditors.map(x => [...x]);
+  while (di < d.length && ci < c.length) {
+    const amt = Math.min(d[di][1], c[ci][1]);
+    if (amt > 0.5) {
+      const key = d[di][0] + '__' + c[ci][0];
+      txns.push({ from: d[di][0], to: c[ci][0], amount: amt, key });
+    }
+    d[di][1] -= amt; c[ci][1] -= amt;
+    if (d[di][1] < 0.5) di++;
+    if (c[ci][1] < 0.5) ci++;
+  }
+  return txns;
+}
+
 // ── SUMMARY ──────────────────────────────────────────────
-// ── HELPER: PENJELASAN TRANSFER ──────────────────────────
 function buildTransferExplanation(txn, balMap) {
   const fromBal = balMap[txn.from] || 0;
   const toBal = balMap[txn.to] || 0;
@@ -1188,27 +1526,36 @@ function buildTransferExplanation(txn, balMap) {
     </div>`;
 }
 
-// ── TOGGLE INFO PANEL ────────────────────────────────────
 function toggleInfo(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-// ── SUMMARY ──────────────────────────────────────────────
 function renderSummary() {
   const el = document.getElementById('summaryContent');
   if (!el) return;
-  const list = Object.values(sesiData);
-  if (!list.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Belum ada data sesi.</p></div>';
+
+  // Filter sesi berdasarkan group filter
+  let filteredList = Object.values(sesiData);
+  let filterLabel = '';
+  if (summaryGroupFilter === 'ungrouped') {
+    filteredList = filteredList.filter(s => !s.groupId || !groups[s.groupId]);
+    filterLabel = 'Sesi tanpa grup';
+  } else if (summaryGroupFilter !== 'all') {
+    filteredList = filteredList.filter(s => s.groupId === summaryGroupFilter);
+    filterLabel = groups[summaryGroupFilter] ? groups[summaryGroupFilter].name : '';
+  }
+
+  if (!filteredList.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Belum ada data sesi' + (filterLabel ? ' di grup ' + escHtml(filterLabel) : '') + '.</p></div>';
     return;
   }
 
-  // Hitung saldo per orang
+  // Hitung saldo per orang dari sesi yang difilter
   const bal = {};
   members.forEach(m => bal[m] = 0);
-  list.forEach(s => {
+  filteredList.forEach(s => {
     s.items.forEach(item => {
       Object.entries(item.shares || {}).forEach(([m, amt]) => {
         if (!(m in bal)) bal[m] = 0;
@@ -1221,7 +1568,6 @@ function renderSummary() {
     });
   });
 
-  // Simpan snapshot saldo untuk penjelasan
   const balMap = { ...bal };
 
   // Greedy settle
@@ -1243,11 +1589,25 @@ function renderSummary() {
     if (c[ci][1] < 0.5) ci++;
   }
 
-  const totalExp = list.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
+  const totalExp = filteredList.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
   const doneCount = txns.filter(t => paidStatus[t.key]).length;
 
-  let html = `<div class="stats">
-    <div class="stat"><div class="stat-label">Total pengeluaran</div><div class="stat-val">${fmt(totalExp)}</div><div class="stat-sub">${list.length} sesi</div></div>
+  let html = '';
+
+  // Label grup aktif
+  if (filterLabel) {
+    const g = summaryGroupFilter !== 'all' && summaryGroupFilter !== 'ungrouped' ? groups[summaryGroupFilter] : null;
+    if (g) {
+      html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:8px 12px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border)">
+        <div class="group-color-dot" style="background:${escHtml(g.color||'#2563EB')};width:10px;height:10px"></div>
+        <span style="font-size:13px;font-weight:600">${escHtml(g.name)}</span>
+        <span style="font-size:12px;color:var(--text3)">${filteredList.length} sesi</span>
+      </div>`;
+    }
+  }
+
+  html += `<div class="stats">
+    <div class="stat"><div class="stat-label">Total pengeluaran</div><div class="stat-val">${fmt(totalExp)}</div><div class="stat-sub">${filteredList.length} sesi</div></div>
     <div class="stat"><div class="stat-label">Perlu transfer</div><div class="stat-val">${txns.length - doneCount}</div><div class="stat-sub">${doneCount} selesai</div></div>
     <div class="stat"><div class="stat-label">Progress</div><div class="stat-val">${txns.length ? Math.round(doneCount / txns.length * 100) : 100}%</div><div class="stat-sub">${doneCount}/${txns.length} lunas</div></div>
   </div>`;
@@ -1258,7 +1618,6 @@ function renderSummary() {
     return;
   }
 
-  // Transfer list global dengan tombol ?
   html += `<p style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Transfer yang perlu dilakukan</p>`;
   html += `<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">`;
   html += txns.map(t => {
@@ -1293,23 +1652,24 @@ function renderSummary() {
   }).join('');
   html += '</div>';
 
-  // Per-person summary — detailed breakdown
   html += `<p style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Per orang</p>`;
 
   html += members.map(m => {
     const owe = txns.filter(t => t.from === m);
     const recv = txns.filter(t => t.to === m);
     const pid = 'pb_' + m.replace(/\W/g, '');
-    const allDone = owe.length
-      ? owe.every(t => paidStatus[t.key])
-      : recv.length ? recv.every(t => paidStatus[t.key]) : true;
 
-    // Hitung total konsumsi & bayar per orang dari semua sesi
+    // FIX BUG 1: allDone harus cek SEMUA (owe + recv) sudah lunas
+    const allTxnsForPerson = [...owe, ...recv];
+    const allDone = allTxnsForPerson.length > 0
+      ? allTxnsForPerson.every(t => paidStatus[t.key])
+      : true;
+
     let totalKonsumsi = 0;
     let totalBayar = 0;
     const sesiBreakdown = [];
 
-    list.forEach(s => {
+    filteredList.forEach(s => {
       const sItems = [];
       s.items.forEach(item => {
         const share = (item.shares || {})[m];
@@ -1332,18 +1692,34 @@ function renderSummary() {
     const saldo = totalBayar - totalKonsumsi;
     const noActivity = !owe.length && !recv.length;
 
-    // Badge header
+    // FIX BUG 1: headerBadge untuk "recv" juga cek apakah sudah lunas
     let headerBadge = '';
     if (noActivity) {
       headerBadge = `<span class="badge badge-green">Lunas ✓</span>`;
+    } else if (owe.length && recv.length) {
+      // Punya keduanya
+      const owePending = owe.filter(t => !paidStatus[t.key]).reduce((s, t) => s + t.amount, 0);
+      const recvPending = recv.filter(t => !paidStatus[t.key]).reduce((s, t) => s + t.amount, 0);
+      if (allDone) {
+        headerBadge = `<span class="badge badge-green">Lunas ✓</span>`;
+      } else {
+        const parts = [];
+        if (owePending > 0) parts.push(`Bayar ${fmt(owePending)}`);
+        if (recvPending > 0) parts.push(`Terima ${fmt(recvPending)}`);
+        headerBadge = `<span class="badge badge-amber">${parts.join(' · ')}</span>`;
+      }
     } else if (owe.length) {
       const totalOweRem = owe.filter(t => !paidStatus[t.key]).reduce((s, t) => s + t.amount, 0);
       headerBadge = allDone
         ? `<span class="badge badge-green">Lunas ✓</span>`
         : `<span class="badge badge-red">Bayar ${fmt(totalOweRem)}</span>`;
     } else {
-      const totalRecv = recv.reduce((s, t) => s + t.amount, 0);
-      headerBadge = `<span class="badge badge-blue">Terima ${fmt(totalRecv)}</span>`;
+      // recv only
+      const totalRecvRem = recv.filter(t => !paidStatus[t.key]).reduce((s, t) => s + t.amount, 0);
+      // FIX: jika semua recv sudah lunas, tampilkan badge hijau
+      headerBadge = allDone
+        ? `<span class="badge badge-green">Lunas ✓</span>`
+        : `<span class="badge badge-blue">Terima ${fmt(totalRecvRem)}</span>`;
     }
 
     if (noActivity) {
@@ -1355,7 +1731,6 @@ function renderSummary() {
       </div>`;
     }
 
-    // Rincian konsumsi per sesi
     let breakdownHtml = `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;
       letter-spacing:0.05em;padding:10px 14px 6px;background:var(--surface2);border-top:1px solid var(--border)">
       📋 Rincian konsumsi
@@ -1394,7 +1769,6 @@ function renderSummary() {
       breakdownHtml += `</div>`;
     });
 
-    // Kalkulasi saldo
     breakdownHtml += `<div style="background:var(--surface2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);
       padding:8px 14px;font-size:12px;color:var(--text2)">
       Total konsumsi: <b style="color:var(--red)">${fmt(totalKonsumsi)}</b>
@@ -1413,7 +1787,6 @@ function renderSummary() {
       </span>
     </div>`;
 
-    // Transfer — harus dilakukan (owe)
     if (owe.length) {
       breakdownHtml += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;
         letter-spacing:0.05em;padding:8px 14px 4px;background:var(--surface2);border-top:1px solid var(--border)">
@@ -1451,7 +1824,6 @@ function renderSummary() {
       breakdownHtml += `</div>`;
     }
 
-    // Transfer — akan diterima (recv)
     if (recv.length) {
       breakdownHtml += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;
         letter-spacing:0.05em;padding:8px 14px 4px;background:var(--surface2);border-top:1px solid var(--border)">
@@ -1514,6 +1886,7 @@ function togglePaid(key) {
   const current = !!paidStatus[key];
   setPaid(key, !current);
   renderSummary();
+  renderSesiList(); // Update status sesi juga
   toast(current ? 'Ditandai belum lunas' : 'Ditandai sudah lunas ✓', current ? '' : 'success');
 }
 
@@ -1531,7 +1904,7 @@ function addMember() {
   if (!val) { toast('Isi nama anggota','error'); return; }
   if (members.includes(val)) { toast('Sudah ada!','error'); return; }
   members.push(val);
-  pushMembers(); // ← langsung save ke Firebase
+  pushMembers();
   document.getElementById('newMemberInput').value = '';
   renderMemberList();
   renderChips();
