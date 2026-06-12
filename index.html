@@ -692,6 +692,10 @@ function loadFromFirebase() {
         window._deepLinkGroup = null;
         window._deepLinkSesi = null;
         gotoTab('summary');
+        setTimeout(() => {
+          renderSummaryGroupFilter();
+          renderSummary();
+        }, 0);
       } else {
         renderSesiList();
         renderSummary();
