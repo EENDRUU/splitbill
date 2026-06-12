@@ -412,7 +412,7 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
     <div class="sec-header">
       <p class="sec-title">Ringkasan hutang</p>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-sm" onclick="shareCurrentSummary()">
+        <button class="btn btn-sm" id="shareSummaryTabBtn" onclick="shareCurrentSummary()" style="display:none">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
           Share
         </button>
@@ -527,25 +527,30 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
 
 <!-- ═══ MODAL: SHARE SUMMARY ═══ -->
 <div id="shareSummaryModal" class="modal-bg" style="display:none" onclick="closeBgModal('shareSummaryModal',event)">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:500px">
     <span class="modal-handle"></span>
     <div class="modal-header">
-      <p class="modal-title" id="shareSummaryTitle">Ringkasan</p>
+      <p class="modal-title" id="shareSummaryTitle">Bagikan ringkasan</p>
       <button class="btn btn-icon btn-sm" onclick="closeModal('shareSummaryModal')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-      <button class="btn btn-blue btn-sm" onclick="copyShareSummaryText()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-        Salin teks
-      </button>
-      <button class="btn btn-sm" onclick="shareToWhatsAppSummary()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
-        WhatsApp
-      </button>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px" id="shareSummaryDesc"></p>
+    <div class="share-box">
+      <p style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">🔗 Link ringkasan</p>
+      <div class="share-url" id="shareSummaryUrl">Memuat...</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-blue btn-sm" onclick="copyShareSummaryLink()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Salin link
+        </button>
+        <button class="btn btn-sm" onclick="shareShareSummaryWhatsApp()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          WhatsApp
+        </button>
+      </div>
     </div>
-    <div id="shareSummaryBody" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:60vh;overflow-y:auto;font-family:monospace"></div>
+    <p style="font-size:11px;color:var(--text3)">⚠️ Siapa pun yang punya link ini bisa melihat dan edit data patungan.</p>
   </div>
 </div>
 
@@ -663,10 +668,33 @@ function loadFromFirebase() {
     if (membersLoaded && sesiLoaded && paidLoaded && groupsLoaded) {
       migratePaidStatus();
       loader(false);
-      renderSesiList();
-      renderSummary();
-      renderChips();
-      renderGroupSelect();
+      // Handle deep link setelah data loaded
+      if (window._deepLinkGroup || window._deepLinkSesi) {
+        if (window._deepLinkSesi && sesiData[window._deepLinkSesi]) {
+          // Deep link ke sesi tertentu — filter per sesi tidak ada di summary tab,
+          // tapi kita bisa set ke grup sesi tersebut kalau ada, atau ungrouped
+          const s = sesiData[window._deepLinkSesi];
+          if (s.groupId && groups[s.groupId]) {
+            summaryGroupFilter = s.groupId;
+          } else {
+            summaryGroupFilter = 'ungrouped';
+          }
+        } else if (window._deepLinkGroup) {
+          if (window._deepLinkGroup === 'ungrouped') {
+            summaryGroupFilter = 'ungrouped';
+          } else if (groups[window._deepLinkGroup]) {
+            summaryGroupFilter = window._deepLinkGroup;
+          }
+        }
+        window._deepLinkGroup = null;
+        window._deepLinkSesi = null;
+        gotoTab('summary');
+      } else {
+        renderSesiList();
+        renderSummary();
+        renderChips();
+        renderGroupSelect();
+      }
     }
   };
 
@@ -843,6 +871,15 @@ window.addEventListener('load', () => {
       loadLocalFallback();
       initFirebase(decoded);
       showMainApp();
+      // Handle deep link: view=summary&group=ID atau view=summary&sesi=ID
+      const viewMatch = hash.match(/[&]view=([^&]+)/);
+      if (viewMatch && viewMatch[1] === 'summary') {
+        const groupMatch = hash.match(/[&]group=([^&]+)/);
+        const sesiMatch = hash.match(/[&]sesi=([^&]+)/);
+        // Tunggu data load, lalu navigate
+        window._deepLinkGroup = groupMatch ? decodeURIComponent(groupMatch[1]) : null;
+        window._deepLinkSesi = sesiMatch ? decodeURIComponent(sesiMatch[1]) : null;
+      }
       return;
     }
   }
@@ -1487,7 +1524,11 @@ function deleteGroup(id) {
   renderGroupSelect();
   renderSesiList();
   renderSummaryGroupFilter();
-  if (summaryGroupFilter === id) { summaryGroupFilter = 'all'; renderSummary(); }
+  if (summaryGroupFilter === id) {
+    const remaining = Object.keys(groups);
+    summaryGroupFilter = remaining.length ? remaining[0] : 'ungrouped';
+    renderSummary();
+  }
   toast('Grup dihapus');
 }
 
@@ -1517,12 +1558,21 @@ function renderSummaryGroupFilter() {
   const el = document.getElementById('summaryGroupFilter');
   if (!el) return;
   const gList = Object.values(groups);
-  if (!gList.length) { el.innerHTML = ''; return; }
-
   const hasUngrouped = Object.values(sesiData).some(s => !s.groupId || !groups[s.groupId]);
 
+  // Jika tidak ada grup dan tidak ada ungrouped, kosongkan
+  if (!gList.length && !hasUngrouped) { el.innerHTML = ''; return; }
+
+  // Jika filter aktif adalah 'all', otomatis pindah ke tab pertama yang tersedia
+  if (summaryGroupFilter === 'all') {
+    if (gList.length) {
+      summaryGroupFilter = gList[0].id;
+    } else if (hasUngrouped) {
+      summaryGroupFilter = 'ungrouped';
+    }
+  }
+
   let html = '<div class="filter-tabs">';
-  html += `<span class="filter-tab ${summaryGroupFilter==='all'?'active':''}" onclick="setSummaryFilter('all')">Semua sesi</span>`;
   gList.forEach(g => {
     html += `<span class="filter-tab ${summaryGroupFilter===g.id?'active':''}" onclick="setSummaryFilter('${g.id}')" style="display:inline-flex;align-items:center;gap:5px">
       <div style="width:7px;height:7px;border-radius:50%;background:${escHtml(g.color||'#2563EB')}"></div>
@@ -1540,6 +1590,9 @@ function setSummaryFilter(val) {
   summaryGroupFilter = val;
   renderSummaryGroupFilter();
   renderSummary();
+  // Tampilkan Share button di header jika filter aktif bukan 'all'
+  const shareBtn = document.getElementById('shareSummaryTabBtn');
+  if (shareBtn) shareBtn.style.display = (val !== 'all') ? 'inline-flex' : 'none';
 }
 
 // ── COMPUTE TXNS (helper reusable) ───────────────────────
@@ -2047,113 +2100,70 @@ function shareWhatsApp() {
   window.open('https://wa.me/?text=Hei+yuk+lacak+patungan+kita+%F0%9F%92%B0+'+url,'_blank');
 }
 
-let _shareSummaryText = '';
-
-function buildSummaryText(sesiList, title, scope) {
-  const total = sesiList.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
-  const txns = computeScopedTxns(sesiList, scope || '_raw');
-
-  // Collect active members
-  const activeMembersSet = new Set();
-  sesiList.forEach(s => { s.members.forEach(m => activeMembersSet.add(m)); s.payers.forEach(p => activeMembersSet.add(p.name)); });
-  const activeMembers = members.filter(m => activeMembersSet.has(m));
-
-  let text = `💰 *${title}*\n`;
-  text += `${'─'.repeat(30)}\n`;
-  text += `Total pengeluaran: *${fmt(total)}*\n`;
-  text += `${sesiList.length} sesi · ${txns.length} transfer\n\n`;
-
-  if (sesiList.length > 1) {
-    text += `📋 *Daftar Sesi:*\n`;
-    sesiList.forEach(s => {
-      const st = s.items.reduce((a, i) => a + i.price, 0);
-      text += `  • ${s.name}${s.date?' ('+s.date+')':''} — ${fmt(st)}\n`;
-    });
-    text += '\n';
-  }
-
-  // Per person breakdown
-  text += `👤 *Rincian per orang:*\n${'─'.repeat(30)}\n`;
-  activeMembers.forEach(m => {
-    let konsumsi = 0, bayar = 0;
-    const items = [];
-    sesiList.forEach(s => {
-      s.items.forEach(item => {
-        const share = (item.shares || {})[m];
-        if (share && share > 0.01) { konsumsi += share; items.push(`${item.name}: ${fmt(share)}`); }
-      });
-      s.payers.forEach(p => { if (p.name === m) bayar += p.amount; });
-    });
-    if (konsumsi === 0 && bayar === 0) return;
-    const saldo = bayar - konsumsi;
-    text += `\n*${m}*\n`;
-    items.forEach(it => { text += `  🛒 ${it}\n`; });
-    if (bayar > 0) text += `  💳 Bayar kas: ${fmt(bayar)}\n`;
-    text += `  Saldo: ${saldo >= 0 ? '+'+fmt(saldo)+' (piutang)' : fmt(saldo)+' (hutang)'}\n`;
-  });
-
-  if (txns.length) {
-    text += `\n💸 *Transfer yang perlu dilakukan:*\n${'─'.repeat(30)}\n`;
-    txns.forEach(t => {
-      const done = !!paidStatus[t.key];
-      text += `${done ? '✅' : '⏳'} ${t.from} → ${t.to}: ${fmt(t.amount)}${done ? ' (lunas)' : ''}\n`;
-    });
-  } else {
-    text += '\n🎉 Semua sudah lunas!\n';
-  }
-  text += `\n_Dibuat dari Patungan App_`;
-  return text;
+// ── SHARE SUMMARY (link) ─────────────────────────────────
+// Buat link yang saat dibuka langsung buka tab Summary dengan filter yang tepat
+// Format hash: #cfg=...&view=summary&group=ID  atau  &view=summary&sesi=ID
+function getSummaryShareLink(viewParam) {
+  if (!fbConfig) return '';
+  const cfg = {...fbConfig, dbName};
+  const base = window.location.href.split('#')[0];
+  return base + '#cfg=' + encodeConfig(cfg) + '&' + viewParam;
 }
 
+let _shareSummaryLink = '';
+
 function showShareSummaryModal(type, id) {
-  let sesiList = [], title = '', scope = '';
+  if (!fbConfig) { toast('Hubungkan Firebase dulu untuk share link!','error'); return; }
+  let title = '', desc = '', viewParam = '';
   if (type === 'sesi') {
     const s = sesiData[id];
     if (!s) return;
-    sesiList = [s];
-    title = `Ringkasan Sesi: ${s.name}${s.date?' · '+s.date:''}`;
-    scope = s.id;
+    title = 'Bagikan ringkasan sesi';
+    desc = `Link akan membuka langsung ke ringkasan sesi "${escHtml(s.name)}"`;
+    viewParam = 'view=summary&sesi=' + encodeURIComponent(id);
   } else if (type === 'group') {
     const g = groups[id];
     if (!g) return;
-    sesiList = Object.values(sesiData).filter(s => s.groupId === id);
-    title = `Ringkasan Grup: ${g.name}`;
-    scope = id;
+    title = 'Bagikan ringkasan grup';
+    desc = `Link akan membuka langsung ke ringkasan grup "${escHtml(g.name)}"`;
+    viewParam = 'view=summary&group=' + encodeURIComponent(id);
   }
-  _shareSummaryText = buildSummaryText(sesiList, title, scope);
+  _shareSummaryLink = getSummaryShareLink(viewParam);
   document.getElementById('shareSummaryTitle').textContent = title;
-  document.getElementById('shareSummaryBody').textContent = _shareSummaryText;
+  document.getElementById('shareSummaryDesc').innerHTML = desc;
+  document.getElementById('shareSummaryUrl').textContent = _shareSummaryLink;
   document.getElementById('shareSummaryModal').style.display = 'flex';
 }
 
-function copyShareSummaryText() {
-  navigator.clipboard.writeText(_shareSummaryText).then(() => toast('Teks disalin! 📋','success'));
+function copyShareSummaryLink() {
+  if (!_shareSummaryLink) return;
+  navigator.clipboard.writeText(_shareSummaryLink).then(() => toast('Link disalin! 🔗','success'));
 }
 
-function shareToWhatsAppSummary() {
-  window.open('https://wa.me/?text=' + encodeURIComponent(_shareSummaryText), '_blank');
+function shareShareSummaryWhatsApp() {
+  if (!_shareSummaryLink) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent('Cek ringkasan patungan kita 💰 ' + _shareSummaryLink), '_blank');
 }
 
 function shareCurrentSummary() {
-  let sesiList = Object.values(sesiData);
-  let title = 'Ringkasan Semua Sesi';
-  let scope = 'all';
+  if (!fbConfig) { toast('Hubungkan Firebase dulu untuk share link!','error'); return; }
+  let title = '', desc = '', viewParam = '';
   if (summaryGroupFilter === 'ungrouped') {
-    sesiList = sesiList.filter(s => !s.groupId || !groups[s.groupId]);
-    title = 'Ringkasan Sesi Tanpa Grup';
-    scope = 'ungrouped';
-  } else if (summaryGroupFilter !== 'all') {
+    title = 'Bagikan ringkasan';
+    desc = 'Link akan membuka ringkasan sesi tanpa grup';
+    viewParam = 'view=summary&group=ungrouped';
+  } else if (summaryGroupFilter !== 'all' && groups[summaryGroupFilter]) {
     const g = groups[summaryGroupFilter];
-    if (g) {
-      sesiList = sesiList.filter(s => s.groupId === summaryGroupFilter);
-      title = 'Ringkasan Grup: ' + g.name;
-      scope = summaryGroupFilter;
-    }
+    title = 'Bagikan ringkasan grup';
+    desc = `Link akan membuka langsung ke ringkasan grup "${escHtml(g.name)}"`;
+    viewParam = 'view=summary&group=' + encodeURIComponent(summaryGroupFilter);
+  } else {
+    toast('Pilih grup atau sesi dulu','error'); return;
   }
-  if (!sesiList.length) { toast('Tidak ada data untuk di-share','error'); return; }
-  _shareSummaryText = buildSummaryText(sesiList, title, scope);
+  _shareSummaryLink = getSummaryShareLink(viewParam);
   document.getElementById('shareSummaryTitle').textContent = title;
-  document.getElementById('shareSummaryBody').textContent = _shareSummaryText;
+  document.getElementById('shareSummaryDesc').innerHTML = desc;
+  document.getElementById('shareSummaryUrl').textContent = _shareSummaryLink;
   document.getElementById('shareSummaryModal').style.display = 'flex';
 }
 
