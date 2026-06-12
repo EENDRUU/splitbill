@@ -2091,7 +2091,7 @@ function renderMemberList() {
 // ── BUILD SHARE TEXT ─────────────────────────────────────
 function buildShareText(type, id, url) {
   const fmtLocal = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
-  let lines = ['🧾 Split Bill'];
+  let lines = ['\uD83E\uDDFE Split Bill']; // 🧾 — BMP-safe escape
 
   if (type === 'full') {
     lines.push('');
@@ -2102,24 +2102,24 @@ function buildShareText(type, id, url) {
         const gSesi = allSesi.filter(s => s.groupId === g.id);
         if (!gSesi.length) return;
         const gTotal = gSesi.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
-        lines.push(`📂 ${g.name} (${fmtLocal(gTotal)})`);
+        lines.push('\uD83D\uDCC2 ' + g.name + ' (' + fmtLocal(gTotal) + ')'); // 📂
         gSesi.forEach(s => {
           const t = s.items.reduce((a, i) => a + i.price, 0);
-          lines.push(`  - ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+          lines.push('  - ' + s.name + (s.date ? ' (' + s.date + ')' : '') + ' \u2014 ' + fmtLocal(t));
         });
       });
       const ungrouped = allSesi.filter(s => !s.groupId || !groups[s.groupId]);
       if (ungrouped.length) {
-        lines.push('📋 Sesi lainnya');
+        lines.push('\uD83D\uDCCB Sesi lainnya'); // 📋
         ungrouped.forEach(s => {
           const t = s.items.reduce((a, i) => a + i.price, 0);
-          lines.push(`  - ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+          lines.push('  - ' + s.name + (s.date ? ' (' + s.date + ')' : '') + ' \u2014 ' + fmtLocal(t));
         });
       }
     } else {
       allSesi.forEach(s => {
         const t = s.items.reduce((a, i) => a + i.price, 0);
-        lines.push(`  - ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+        lines.push('  - ' + s.name + (s.date ? ' (' + s.date + ')' : '') + ' \u2014 ' + fmtLocal(t));
       });
     }
 
@@ -2129,10 +2129,10 @@ function buildShareText(type, id, url) {
     const total = s.items.reduce((a, i) => a + i.price, 0);
     const g = s.groupId && groups[s.groupId] ? groups[s.groupId] : null;
     lines.push('');
-    if (g) lines.push(`📂 Grup: ${g.name}`);
-    lines.push(`📋 Sesi: ${s.name}${s.date ? ' (' + s.date + ')' : ''}`);
-    lines.push(`💵 Total: ${fmtLocal(total)}`);
-    lines.push(`👥 ${s.members.join(', ')}`);
+    if (g) lines.push('\uD83D\uDCC2 Grup: ' + g.name); // 📂
+    lines.push('\uD83D\uDCCB Sesi: ' + s.name + (s.date ? ' (' + s.date + ')' : '')); // 📋
+    lines.push('\uD83D\uDCB5 Total: ' + fmtLocal(total)); // 💵
+    lines.push('\uD83D\uDC65 ' + s.members.join(', ')); // 👥
 
   } else if (type === 'group') {
     const g = groups[id];
@@ -2142,11 +2142,11 @@ function buildShareText(type, id, url) {
       .sort((a, b) => b.id.localeCompare(a.id));
     const gTotal = sesiList.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.price, 0), 0);
     lines.push('');
-    lines.push(`📂 Grup: ${g.name} — ${fmtLocal(gTotal)}`);
-    lines.push('📋 Sesi:');
+    lines.push('\uD83D\uDCC2 Grup: ' + g.name + ' \u2014 ' + fmtLocal(gTotal)); // 📂
+    lines.push('\uD83D\uDCCB Sesi:'); // 📋
     sesiList.forEach(s => {
       const t = s.items.reduce((a, i) => a + i.price, 0);
-      lines.push(`  - ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+      lines.push('  - ' + s.name + (s.date ? ' (' + s.date + ')' : '') + ' \u2014 ' + fmtLocal(t));
     });
 
   } else if (type === 'ungrouped') {
@@ -2155,10 +2155,10 @@ function buildShareText(type, id, url) {
       .sort((a, b) => b.id.localeCompare(a.id));
     const total = sesiList.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.price, 0), 0);
     lines.push('');
-    lines.push(`📋 Sesi tanpa grup — ${fmtLocal(total)}`);
+    lines.push('\uD83D\uDCCB Sesi tanpa grup \u2014 ' + fmtLocal(total)); // 📋
     sesiList.forEach(s => {
       const t = s.items.reduce((a, i) => a + i.price, 0);
-      lines.push(`  - ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+      lines.push('  - ' + s.name + (s.date ? ' (' + s.date + ')' : '') + ' \u2014 ' + fmtLocal(t));
     });
   }
 
@@ -2175,11 +2175,16 @@ function showShareModal() {
 function copyShareUrl() {
   const url = getShareUrl();
   const text = buildShareText('full', null, url);
-  navigator.clipboard.writeText(text).then(() => toast('Link disalin! 🔗','success'));
+  navigator.clipboard.writeText(text).then(() => toast('Link disalin! 🔗', 'success'));
 }
+
 function shareWhatsApp() {
   const url = getShareUrl();
   const text = buildShareText('full', null, url);
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+    return;
+  }
   window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
@@ -2302,14 +2307,19 @@ function showShareSummaryModal(type, id) {
 function copyShareSummaryLink() {
   if (!_shareSummaryLink) return;
   const text = buildShareText(_shareSummaryType, _shareSummaryId, _shareSummaryLink);
-  navigator.clipboard.writeText(text).then(() => toast('Link disalin! 🔗','success'));
+  navigator.clipboard.writeText(text).then(() => toast('Link disalin! 🔗', 'success'));
 }
 
 function shareShareSummaryWhatsApp() {
   if (!_shareSummaryLink) return;
   const text = buildShareText(_shareSummaryType, _shareSummaryId, _shareSummaryLink);
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+    return;
+  }
   window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
+
 
 function shareCurrentSummary() {
   if (!fbConfig) { toast('Hubungkan Firebase dulu untuk share link!','error'); return; }
