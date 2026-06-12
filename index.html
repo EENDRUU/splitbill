@@ -540,7 +540,8 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
     <div id="shareSummaryInfo" style="margin-bottom:14px"></div>
 
     <div class="share-box">
-      <p style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">🔗 Link ringkasan</p>
+      <p style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">🔗 Link ringkasan</p>
+      <div id="shareSummaryLabel" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid var(--blue-border)"></div>
       <div class="share-url" id="shareSummaryUrl">Memuat...</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-blue btn-sm" onclick="copyShareSummaryLink()">
@@ -2195,21 +2196,25 @@ let _shareSummaryLink = '';
 
 function showShareSummaryModal(type, id) {
   if (!fbConfig) { toast('Hubungkan Firebase dulu untuk share link!','error'); return; }
-  let title = '', viewParam = '', infoType = type, infoId = id;
+  let title = '', viewParam = '', label = '';
   if (type === 'sesi') {
     const s = sesiData[id];
     if (!s) return;
     title = 'Bagikan ringkasan sesi';
     viewParam = 'view=summary&sesi=' + encodeURIComponent(id);
+    const g = s.groupId && groups[s.groupId] ? groups[s.groupId] : null;
+    label = (g ? `<span style="color:var(--text2);font-weight:500">${escHtml(g.name)}</span> <span style="color:var(--text3)">›</span> ` : '') + escHtml(s.name);
   } else if (type === 'group') {
     const g = groups[id];
     if (!g) return;
     title = 'Bagikan ringkasan grup';
     viewParam = 'view=summary&group=' + encodeURIComponent(id);
+    label = escHtml(g.name);
   }
   _shareSummaryLink = getSummaryShareLink(viewParam);
   document.getElementById('shareSummaryTitle').textContent = title;
-  document.getElementById('shareSummaryInfo').innerHTML = buildShareSummaryInfo(infoType, infoId);
+  document.getElementById('shareSummaryLabel').innerHTML = label;
+  document.getElementById('shareSummaryInfo').innerHTML = buildShareSummaryInfo(type, id);
   document.getElementById('shareSummaryUrl').textContent = _shareSummaryLink;
   document.getElementById('shareSummaryModal').style.display = 'flex';
 }
