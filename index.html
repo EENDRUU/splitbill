@@ -540,8 +540,7 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
     <div id="shareSummaryInfo" style="margin-bottom:14px"></div>
 
     <div class="share-box">
-      <p style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">🔗 Link ringkasan</p>
-      <div id="shareSummaryLabel" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;padding-bottom:8px;border-bottom:1px solid var(--blue-border)"></div>
+      <p style="font-size:11px;font-weight:700;color:var(--blue);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">🔗 Link ringkasan</p>
       <div class="share-url" id="shareSummaryUrl">Memuat...</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-blue btn-sm" onclick="copyShareSummaryLink()">
@@ -2089,6 +2088,85 @@ function renderMemberList() {
       </div>`
     ).join('') + `</div>`;
 }
+// ── BUILD SHARE TEXT ─────────────────────────────────────
+function buildShareText(type, id, url) {
+  const fmtLocal = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
+  let lines = ['Cek patungan kita 💰'];
+
+  if (type === 'full') {
+    // Share link utama (semua sesi)
+    lines.push('');
+    const allSesi = Object.values(sesiData).sort((a, b) => b.id.localeCompare(a.id));
+    const gList = Object.values(groups);
+    if (gList.length) {
+      gList.forEach(g => {
+        const gSesi = allSesi.filter(s => s.groupId === g.id);
+        if (!gSesi.length) return;
+        const gTotal = gSesi.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
+        lines.push(`📁 ${g.name} (${fmtLocal(gTotal)})`);
+        gSesi.forEach(s => {
+          const t = s.items.reduce((a, i) => a + i.price, 0);
+          lines.push(`  • ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+        });
+      });
+      const ungrouped = allSesi.filter(s => !s.groupId || !groups[s.groupId]);
+      if (ungrouped.length) {
+        lines.push('📋 Sesi lainnya');
+        ungrouped.forEach(s => {
+          const t = s.items.reduce((a, i) => a + i.price, 0);
+          lines.push(`  • ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+        });
+      }
+    } else {
+      allSesi.forEach(s => {
+        const t = s.items.reduce((a, i) => a + i.price, 0);
+        lines.push(`  • ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+      });
+    }
+
+  } else if (type === 'sesi') {
+    const s = sesiData[id];
+    if (!s) return url;
+    const total = s.items.reduce((a, i) => a + i.price, 0);
+    const g = s.groupId && groups[s.groupId] ? groups[s.groupId] : null;
+    lines.push('');
+    if (g) lines.push(`📁 Grup: ${g.name}`);
+    lines.push(`📋 Sesi: ${s.name}${s.date ? ' (' + s.date + ')' : ''}`);
+    lines.push(`💰 Total: ${fmtLocal(total)}`);
+    lines.push(`👥 ${s.members.join(', ')}`);
+
+  } else if (type === 'group') {
+    const g = groups[id];
+    if (!g) return url;
+    const sesiList = Object.values(sesiData)
+      .filter(s => s.groupId === id)
+      .sort((a, b) => b.id.localeCompare(a.id));
+    const gTotal = sesiList.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.price, 0), 0);
+    lines.push('');
+    lines.push(`📁 Grup: ${g.name} — ${fmtLocal(gTotal)}`);
+    lines.push('📋 Sesi:');
+    sesiList.forEach(s => {
+      const t = s.items.reduce((a, i) => a + i.price, 0);
+      lines.push(`  • ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+    });
+
+  } else if (type === 'ungrouped') {
+    const sesiList = Object.values(sesiData)
+      .filter(s => !s.groupId || !groups[s.groupId])
+      .sort((a, b) => b.id.localeCompare(a.id));
+    const total = sesiList.reduce((sum, s) => sum + s.items.reduce((a, i) => a + i.price, 0), 0);
+    lines.push('');
+    lines.push(`📋 Sesi tanpa grup — ${fmtLocal(total)}`);
+    sesiList.forEach(s => {
+      const t = s.items.reduce((a, i) => a + i.price, 0);
+      lines.push(`  • ${s.name}${s.date ? ' (' + s.date + ')' : ''} — ${fmtLocal(t)}`);
+    });
+  }
+
+  lines.push('');
+  lines.push(url);
+  return lines.join('\n');
+}
 
 // ── SHARE ────────────────────────────────────────────────
 function showShareModal() {
@@ -2097,12 +2175,16 @@ function showShareModal() {
   document.getElementById('shareModal').style.display = 'flex';
 }
 function copyShareUrl() {
-  navigator.clipboard.writeText(getShareUrl()).then(() => toast('Link disalin! 🔗','success'));
+  const url = getShareUrl();
+  const text = buildShareText('full', null, url);
+  navigator.clipboard.writeText(text).then(() => toast('Link disalin! 🔗','success'));
 }
 function shareWhatsApp() {
-  const url = encodeURIComponent(getShareUrl());
-  window.open('https://wa.me/?text=Hei+yuk+lacak+patungan+kita+%F0%9F%92%B0+'+url,'_blank');
+  const url = getShareUrl();
+  const text = buildShareText('full', null, url);
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
+
 
 // ── SHARE SUMMARY (link) ─────────────────────────────────
 function getSummaryShareLink(viewParam) {
@@ -2193,40 +2275,42 @@ function buildShareSummaryInfo(type, id) {
 }
 
 let _shareSummaryLink = '';
+let _shareSummaryType = '';  // tambah ini
+let _shareSummaryId = '';    // tambah ini
 
 function showShareSummaryModal(type, id) {
   if (!fbConfig) { toast('Hubungkan Firebase dulu untuk share link!','error'); return; }
-  let title = '', viewParam = '', label = '';
+  let title = '', viewParam = '', infoType = type, infoId = id;
   if (type === 'sesi') {
     const s = sesiData[id];
     if (!s) return;
     title = 'Bagikan ringkasan sesi';
     viewParam = 'view=summary&sesi=' + encodeURIComponent(id);
-    const g = s.groupId && groups[s.groupId] ? groups[s.groupId] : null;
-    label = (g ? `<span style="color:var(--text2);font-weight:500">${escHtml(g.name)}</span> <span style="color:var(--text3)">›</span> ` : '') + escHtml(s.name);
   } else if (type === 'group') {
     const g = groups[id];
     if (!g) return;
     title = 'Bagikan ringkasan grup';
     viewParam = 'view=summary&group=' + encodeURIComponent(id);
-    label = escHtml(g.name);
   }
   _shareSummaryLink = getSummaryShareLink(viewParam);
+  _shareSummaryType = type;  // tambah
+  _shareSummaryId = id;      // tambah
   document.getElementById('shareSummaryTitle').textContent = title;
-  document.getElementById('shareSummaryLabel').innerHTML = label;
-  document.getElementById('shareSummaryInfo').innerHTML = buildShareSummaryInfo(type, id);
+  document.getElementById('shareSummaryInfo').innerHTML = buildShareSummaryInfo(infoType, infoId);
   document.getElementById('shareSummaryUrl').textContent = _shareSummaryLink;
   document.getElementById('shareSummaryModal').style.display = 'flex';
 }
 
 function copyShareSummaryLink() {
   if (!_shareSummaryLink) return;
-  navigator.clipboard.writeText(_shareSummaryLink).then(() => toast('Link disalin! 🔗','success'));
+  const text = buildShareText(_shareSummaryType, _shareSummaryId, _shareSummaryLink);
+  navigator.clipboard.writeText(text).then(() => toast('Link disalin! 🔗','success'));
 }
 
 function shareShareSummaryWhatsApp() {
   if (!_shareSummaryLink) return;
-  window.open('https://wa.me/?text=' + encodeURIComponent('Cek ringkasan patungan kita 💰 ' + _shareSummaryLink), '_blank');
+  const text = buildShareText(_shareSummaryType, _shareSummaryId, _shareSummaryLink);
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 function shareCurrentSummary() {
@@ -2245,6 +2329,8 @@ function shareCurrentSummary() {
     toast('Pilih grup atau sesi dulu','error'); return;
   }
   _shareSummaryLink = getSummaryShareLink(viewParam);
+  _shareSummaryType = infoType;  // tambah
+_shareSummaryId = infoId;      // tambah
   document.getElementById('shareSummaryTitle').textContent = title;
   document.getElementById('shareSummaryInfo').innerHTML = buildShareSummaryInfo(infoType, infoId);
   document.getElementById('shareSummaryUrl').textContent = _shareSummaryLink;
