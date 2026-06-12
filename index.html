@@ -411,10 +411,16 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
   <div id="tab-summary" class="section">
     <div class="sec-header">
       <p class="sec-title">Ringkasan hutang</p>
-      <button class="btn btn-sm" onclick="renderSummary()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-        Hitung ulang
-      </button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="shareCurrentSummary()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+          Share
+        </button>
+        <button class="btn btn-sm" onclick="renderSummary()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Hitung ulang
+        </button>
+      </div>
     </div>
     <!-- Filter grup untuk summary -->
     <div id="summaryGroupFilter" style="margin-bottom:12px"></div>
@@ -507,14 +513,7 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
 
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <input id="newGroupInput" placeholder="Nama grup, cth: Lebaran 2025" style="flex:1" onkeydown="if(event.key==='Enter')addGroup()">
-      <select id="newGroupColor" style="width:80px">
-        <option value="#2563EB">🔵 Biru</option>
-        <option value="#16A34A">🟢 Hijau</option>
-        <option value="#D97706">🟡 Kuning</option>
-        <option value="#DC2626">🔴 Merah</option>
-        <option value="#7C3AED">🟣 Ungu</option>
-        <option value="#0891B2">🩵 Cyan</option>
-      </select>
+      <input id="newGroupColor" type="color" value="#2563EB" style="width:44px;height:36px;padding:2px 3px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:var(--surface)" title="Pilih warna grup">
       <button class="btn btn-primary btn-sm" onclick="addGroup()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Buat
@@ -525,6 +524,30 @@ code{background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12px
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ═══ MODAL: SHARE SUMMARY ═══ -->
+<div id="shareSummaryModal" class="modal-bg" style="display:none" onclick="closeBgModal('shareSummaryModal',event)">
+  <div class="modal" style="max-width:520px">
+    <span class="modal-handle"></span>
+    <div class="modal-header">
+      <p class="modal-title" id="shareSummaryTitle">Ringkasan</p>
+      <button class="btn btn-icon btn-sm" onclick="closeModal('shareSummaryModal')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn btn-blue btn-sm" onclick="copyShareSummaryText()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Salin teks
+      </button>
+      <button class="btn btn-sm" onclick="shareToWhatsAppSummary()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+        WhatsApp
+      </button>
+    </div>
+    <div id="shareSummaryBody" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;max-height:60vh;overflow-y:auto;font-family:monospace"></div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════
      JAVASCRIPT
@@ -552,8 +575,10 @@ const GROUP_COLORS = {
   '#0891B2': { bg:'#ECFEFF', border:'#A5F3FC', text:'#0891B2' },
 };
 function groupTagStyle(color) {
-  const c = GROUP_COLORS[color] || GROUP_COLORS['#2563EB'];
-  return `background:${c.bg};border:1px solid ${c.border};color:${c.text}`;
+  const c = GROUP_COLORS[color];
+  if (c) return `background:${c.bg};border:1px solid ${c.border};color:${c.text}`;
+  // Fallback for arbitrary colors from color picker
+  return `background:${color}22;border:1px solid ${color}66;color:${color}`;
 }
 
 // ── UTILS ────────────────────────────────────────────────
@@ -1169,18 +1194,15 @@ function editSesi(id) {
 }
 
 // ── SESI STATUS HELPER ───────────────────────────────────
-// Hitung apakah sesi sudah "lunas" berdasarkan paid transfers
-// sesi dianggap lunas jika: payers sudah nutupin total DAN semua transfer yg terkait sesi ini sudah ditandai lunas
-// Untuk simpelnya: sesi lunas jika paid balance ok DAN tidak ada transfer pending yang melibatkan member sesi
-function isSesiLunas(sesi, allTxns) {
+// Hitung apakah sesi sudah "lunas" berdasarkan transfer khusus sesi ini saja
+function isSesiLunas(sesi) {
   // Cek payers vs total
   const total = sesi.items.reduce((s,i) => s+i.price, 0);
   const paid = sesi.payers.reduce((s,p) => s+p.amount, 0);
   if (Math.abs(paid - total) > 5) return false;
-  // Semua transfer global sudah lunas (sederhana: cek tidak ada pending transfer yang melibatkan member sesi ini)
-  const sesiMembers = new Set(sesi.members);
-  const pendingTxns = allTxns.filter(t => !paidStatus[t.key] && (sesiMembers.has(t.from) || sesiMembers.has(t.to)));
-  // Jika ada pending transfer yang melibatkan member sesi ini → belum lunas
+  // Hitung transfer yang HANYA dibutuhkan dalam sesi ini
+  const sesiTxns = computeAllTxns([sesi]);
+  const pendingTxns = sesiTxns.filter(t => !paidStatus[t.key]);
   return pendingTxns.length === 0;
 }
 
@@ -1204,9 +1226,6 @@ function renderSesiList() {
     return;
   }
 
-  // Hitung semua transfer global untuk cek status lunas
-  const allTxns = computeAllTxns(list);
-
   // Pisah grouped dan ungrouped
   const groupedMap = {}; // groupId → [sesi]
   const ungrouped = [];
@@ -1227,7 +1246,7 @@ function renderSesiList() {
     const g = groups[gid];
     const gSesiList = groupedMap[gid];
     const gTotal = gSesiList.reduce((s, se) => s + se.items.reduce((a,i) => a+i.price, 0), 0);
-    const allLunas = gSesiList.every(se => isSesiLunas(se, allTxns));
+    const allLunas = gSesiList.every(se => isSesiLunas(se));
     const colorStyle = groupTagStyle(g.color || '#2563EB');
     const elemId = 'grp_' + gid;
 
@@ -1242,9 +1261,13 @@ function renderSesiList() {
           </div>
         </div>
         <span class="badge ${allLunas?'badge-green':'badge-amber'}">${allLunas?'Semua Lunas':'Ada Hutang'}</span>
+        <button class="btn btn-sm" onclick="event.stopPropagation();showShareSummaryModal('group','${gid}')" style="margin-left:4px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+          Share
+        </button>
       </div>
       <div class="group-body" id="${elemId}">
-        ${gSesiList.map(s => renderSesiCard(s, allTxns, g)).join('')}
+        ${gSesiList.map(s => renderSesiCard(s, g)).join('')}
       </div>
     </div>`;
   });
@@ -1254,7 +1277,7 @@ function renderSesiList() {
     if (Object.keys(groupedMap).length > 0) {
       html += `<span class="ungrouped-label">Sesi tanpa grup</span>`;
     }
-    html += ungrouped.map(s => renderSesiCard(s, allTxns, null)).join('');
+    html += ungrouped.map(s => renderSesiCard(s, null)).join('');
   }
 
   el.innerHTML = html;
@@ -1268,9 +1291,9 @@ function toggleGroupBody(id) {
   if (chev) chev.style.transform = body.classList.contains('open') ? 'rotate(90deg)' : '';
 }
 
-function renderSesiCard(s, allTxns, group) {
+function renderSesiCard(s, group) {
   const total = s.items.reduce((sum,i) => sum+i.price, 0);
-  const lunas = isSesiLunas(s, allTxns);
+  const lunas = isSesiLunas(s);
   const memberStr = s.members.length <= 4
     ? s.members.join(', ')
     : s.members.slice(0,3).join(', ') + ` +${s.members.length-3} lainnya`;
@@ -1304,6 +1327,10 @@ function renderSesiCard(s, allTxns, group) {
       <button class="btn btn-sm" onclick="editSesi('${s.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Edit
+      </button>
+      <button class="btn btn-sm" onclick="showShareSummaryModal('sesi','${s.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+        Share
       </button>
       <button class="btn btn-sm btn-danger" onclick="doDeleteSesi('${s.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
@@ -1354,10 +1381,14 @@ function showDetail(id) {
   });
   html += '</div>';
 
-  html += `<div style="display:flex;gap:8px;margin-top:4px">
+  html += `<div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
     <button class="btn btn-sm" onclick="editSesi('${id}')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Edit sesi
+    </button>
+    <button class="btn btn-sm" onclick="closeModal('detailModal');showShareSummaryModal('sesi','${id}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+      Share ringkasan
     </button>
   </div>`;
 
@@ -1553,8 +1584,18 @@ function renderSummary() {
   }
 
   // Hitung saldo per orang dari sesi yang difilter
+  // Hanya include member yang benar-benar ikut di sesi yang terfilter
+  const activeMembersSet = new Set();
+  filteredList.forEach(s => {
+    s.members.forEach(m => activeMembersSet.add(m));
+    s.payers.forEach(p => activeMembersSet.add(p.name));
+  });
+  const activeMembers = members.filter(m => activeMembersSet.has(m));
+  // Tambah member yang ada di sesi tapi tidak di daftar member global
+  activeMembersSet.forEach(m => { if (!activeMembers.includes(m)) activeMembers.push(m); });
+
   const bal = {};
-  members.forEach(m => bal[m] = 0);
+  activeMembers.forEach(m => bal[m] = 0);
   filteredList.forEach(s => {
     s.items.forEach(item => {
       Object.entries(item.shares || {}).forEach(([m, amt]) => {
@@ -1654,7 +1695,7 @@ function renderSummary() {
 
   html += `<p style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Per orang</p>`;
 
-  html += members.map(m => {
+  html += activeMembers.map(m => {
     const owe = txns.filter(t => t.from === m);
     const recv = txns.filter(t => t.to === m);
     const pid = 'pb_' + m.replace(/\W/g, '');
@@ -1944,6 +1985,111 @@ function copyShareUrl() {
 function shareWhatsApp() {
   const url = encodeURIComponent(getShareUrl());
   window.open('https://wa.me/?text=Hei+yuk+lacak+patungan+kita+%F0%9F%92%B0+'+url,'_blank');
+}
+
+let _shareSummaryText = '';
+
+function buildSummaryText(sesiList, title) {
+  const total = sesiList.reduce((s, se) => s + se.items.reduce((a, i) => a + i.price, 0), 0);
+  const txns = computeAllTxns(sesiList);
+
+  // Collect active members
+  const activeMembersSet = new Set();
+  sesiList.forEach(s => { s.members.forEach(m => activeMembersSet.add(m)); s.payers.forEach(p => activeMembersSet.add(p.name)); });
+  const activeMembers = members.filter(m => activeMembersSet.has(m));
+
+  let text = `💰 *${title}*\n`;
+  text += `${'─'.repeat(30)}\n`;
+  text += `Total pengeluaran: *${fmt(total)}*\n`;
+  text += `${sesiList.length} sesi · ${txns.length} transfer\n\n`;
+
+  if (sesiList.length > 1) {
+    text += `📋 *Daftar Sesi:*\n`;
+    sesiList.forEach(s => {
+      const st = s.items.reduce((a, i) => a + i.price, 0);
+      text += `  • ${s.name}${s.date?' ('+s.date+')':''} — ${fmt(st)}\n`;
+    });
+    text += '\n';
+  }
+
+  // Per person breakdown
+  text += `👤 *Rincian per orang:*\n${'─'.repeat(30)}\n`;
+  activeMembers.forEach(m => {
+    let konsumsi = 0, bayar = 0;
+    const items = [];
+    sesiList.forEach(s => {
+      s.items.forEach(item => {
+        const share = (item.shares || {})[m];
+        if (share && share > 0.01) { konsumsi += share; items.push(`${item.name}: ${fmt(share)}`); }
+      });
+      s.payers.forEach(p => { if (p.name === m) bayar += p.amount; });
+    });
+    if (konsumsi === 0 && bayar === 0) return;
+    const saldo = bayar - konsumsi;
+    text += `\n*${m}*\n`;
+    items.forEach(it => { text += `  🛒 ${it}\n`; });
+    if (bayar > 0) text += `  💳 Bayar kas: ${fmt(bayar)}\n`;
+    text += `  Saldo: ${saldo >= 0 ? '+'+fmt(saldo)+' (piutang)' : fmt(saldo)+' (hutang)'}\n`;
+  });
+
+  if (txns.length) {
+    text += `\n💸 *Transfer yang perlu dilakukan:*\n${'─'.repeat(30)}\n`;
+    txns.forEach(t => {
+      const done = !!paidStatus[t.key];
+      text += `${done ? '✅' : '⏳'} ${t.from} → ${t.to}: ${fmt(t.amount)}${done ? ' (lunas)' : ''}\n`;
+    });
+  } else {
+    text += '\n🎉 Semua sudah lunas!\n';
+  }
+  text += `\n_Dibuat dari Patungan App_`;
+  return text;
+}
+
+function showShareSummaryModal(type, id) {
+  let sesiList = [], title = '';
+  if (type === 'sesi') {
+    const s = sesiData[id];
+    if (!s) return;
+    sesiList = [s];
+    title = `Ringkasan Sesi: ${s.name}${s.date?' · '+s.date:''}`;
+  } else if (type === 'group') {
+    const g = groups[id];
+    if (!g) return;
+    sesiList = Object.values(sesiData).filter(s => s.groupId === id);
+    title = `Ringkasan Grup: ${g.name}`;
+  }
+  _shareSummaryText = buildSummaryText(sesiList, title);
+  document.getElementById('shareSummaryTitle').textContent = title;
+  document.getElementById('shareSummaryBody').textContent = _shareSummaryText;
+  document.getElementById('shareSummaryModal').style.display = 'flex';
+}
+
+function copyShareSummaryText() {
+  navigator.clipboard.writeText(_shareSummaryText).then(() => toast('Teks disalin! 📋','success'));
+}
+
+function shareToWhatsAppSummary() {
+  window.open('https://wa.me/?text=' + encodeURIComponent(_shareSummaryText), '_blank');
+}
+
+function shareCurrentSummary() {
+  let sesiList = Object.values(sesiData);
+  let title = 'Ringkasan Semua Sesi';
+  if (summaryGroupFilter === 'ungrouped') {
+    sesiList = sesiList.filter(s => !s.groupId || !groups[s.groupId]);
+    title = 'Ringkasan Sesi Tanpa Grup';
+  } else if (summaryGroupFilter !== 'all') {
+    const g = groups[summaryGroupFilter];
+    if (g) {
+      sesiList = sesiList.filter(s => s.groupId === summaryGroupFilter);
+      title = 'Ringkasan Grup: ' + g.name;
+    }
+  }
+  if (!sesiList.length) { toast('Tidak ada data untuk di-share','error'); return; }
+  _shareSummaryText = buildSummaryText(sesiList, title);
+  document.getElementById('shareSummaryTitle').textContent = title;
+  document.getElementById('shareSummaryBody').textContent = _shareSummaryText;
+  document.getElementById('shareSummaryModal').style.display = 'flex';
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
